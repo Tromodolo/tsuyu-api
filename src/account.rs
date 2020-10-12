@@ -150,16 +150,21 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
                 created_at: chrono::Utc::now(),
             };
 
-            let res = db::write_file(&file, &db)
-                .await
-                .map_err(|err| {
-                    eprint!("Failed writing file to database: {}", e);
+            let res = db::write_file(&file, &db).await;
+            return match res {
+                Ok(_) => Ok(format!("{}/{}", &env::var("BASE_URL").expect("Base URL is not set"), &file.name)),
+                Err(err) => {
+                    eprint!("Failed writing file to database: {}", err);
                     // If it failed to write to db, delete file from disk
-                    tokio::fs::remove_file(&path).await?;
-                    warp::reject::reject()
-                })?;
-
-            Ok(format!("{}/{}", &env::var("BASE_URL").expect("Base URL is not set"), &file.name))
+                    let remove = tokio::fs::remove_file(&path)
+                        .await;
+                    if let Err(_) = remove {
+                        // If we got to this point, something is very wrong, so just go ahead and panic
+                       panic!("Failed removing file from disk");
+                    }
+                    Err(warp::reject::reject())
+                }
+            }
         }
     }
     // Should never hit this point
