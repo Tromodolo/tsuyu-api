@@ -12,7 +12,7 @@ use sqlx::types::chrono;
 
 use crate::db;
 use sqlx::{MySql, Pool};
-use crate::rejections::{Unauthorized, Banned};
+use crate::rejections::{Unauthorized, Banned, BadRequest};
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
@@ -63,10 +63,9 @@ pub async fn get_user(token: String, db: Pool<MySql>) -> Result<User, warp::reje
 }
 
 pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip: Option<SocketAddr>) -> Result<impl Reply, Rejection> {
-    /* Get file out of the formdata */
     let parts: Vec<Part> = form.try_collect().await.map_err(|e| {
-        eprintln!("Form error: {}", e);
-        warp::reject::reject()
+        eprintln!("Problem with formdata: {}", e);
+        warp::reject::custom(BadRequest)
     })?;
 
     /* Write file to disk */
@@ -76,8 +75,9 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
             if let Some(filetype) = p.content_type() {
                 content_type = String::from(filetype);
             }
-            else { // If it doesn't have a content type, then it might not be a file, so skip
-                continue;
+            else {
+                // If it doesn't have a content type, then it might not be a file, so skip
+                return Err(warp::reject::custom(BadRequest));
             }
 
             let original_file_name: String;
@@ -85,7 +85,7 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
                 original_file_name = String::from(name);
             }
             else {
-                original_file_name = String::from("pain");
+                return Err(warp::reject::custom(BadRequest));
             }
 
             let mut ip_string: String = String::from("");
@@ -97,15 +97,17 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
                 }
             }
 
-            let is_banned = db::is_ip_banned(&ip_string, &db).await;
-            match is_banned {
-                Ok(ban) => {
-                    if ban == true {
-                        return Err(warp::reject::custom(Banned));
-                    }
-                },
-                Err(_) => return Err(warp::reject::reject()),
+            let is_banned = db::is_ip_banned(&ip_string, &db)
+                .await
+                .map_err(|e| {
+                    eprintln!("Problem when fetching ban status: {}", e);
+                    warp::reject::reject()
+                })?;
+
+            if is_banned == true {
+                return Err(warp::reject::custom(Banned));
             }
+
 
             let file_extension = get_file_ending(&original_file_name);
             let file_name = format!("{}{}", Uuid::new_v4().to_simple().to_string().to_lowercase(), &file_extension);
@@ -148,11 +150,16 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
                 created_at: chrono::Utc::now(),
             };
 
-            let res = db::write_file(&file, &db).await;
-            return match res {
-                Ok(_) => Ok(format!("{}/{}", &env::var("BASE_URL").expect("Base URL is not set"), &file.name)),
-                Err(_) => Err(warp::reject::reject()),
-            }
+            let res = db::write_file(&file, &db)
+                .await
+                .map_err(|err| {
+                    eprint!("Failed writing file to database: {}", e);
+                    // If it failed to write to db, delete file from disk
+                    tokio::fs::remove_file(&path).await?;
+                    warp::reject::reject()
+                })?;
+
+            Ok(format!("{}/{}", &env::var("BASE_URL").expect("Base URL is not set"), &file.name))
         }
     }
     // Should never hit this point

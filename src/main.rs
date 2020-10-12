@@ -42,6 +42,9 @@ async fn handle_error(err: Rejection) -> Result<impl Reply, Infallible> {
         else if err.find::<rejections::Unauthorized>().is_some() {
             (StatusCode::UNAUTHORIZED, String::from("Not allowed to upload files"))
         }
+        else if err.find::<rejections::BadRequest>().is_some() {
+            (StatusCode::BAD_REQUEST, String::from("There is a problem with uploading requested data. Please try again"))
+        }
         else if err.find::<rejections::Banned>().is_some() {
             (StatusCode::FORBIDDEN, String::from("Your IP has been banned from uploading files"))
         }
