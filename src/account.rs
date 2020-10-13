@@ -62,6 +62,44 @@ pub async fn get_user(token: String, db: Pool<MySql>) -> Result<User, warp::reje
     Err(warp::reject::custom(Unauthorized))
 }
 
+pub async fn delete_file(id: i64, db: Pool<MySql>, user: User) -> Result<impl Reply, Rejection> {
+    let mut can_delete = false;
+
+    let file: File;
+    match db::get_file_by_id(&id, &db).await {
+        Some(f) => {
+            file = f;
+        },
+        None => {
+            return Err(warp::reject::custom(NotFound));
+        }
+    }
+
+    if file.uploaded_by == user.id || user.is_admin {
+        can_delete = true;
+    }
+
+    if can_delete {
+        match tokio::fs::remove_file(format!("./files/{}", &file.name)).await {
+            Err(e) => {
+                eprint!("Failed deleting file from disk: {}", e);
+                return Err(warp::reject::custom(InternalError));
+            },
+            _ => (),
+        }
+        return match db::delete_file_by_id(&id, &db).await {
+            Ok(_) => Ok("Successfully deleted file"),
+            Err(e) => {
+                eprint!("Failed deleting file: {}", e);
+                Err(warp::reject::custom(InternalError))
+            },
+        }
+    }
+    else {
+        Err(warp::reject::custom(Unauthorized))
+    }
+}
+
 pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip: Option<SocketAddr>) -> Result<impl Reply, Rejection> {
     let parts: Vec<Part> = form.try_collect().await.map_err(|e| {
         eprintln!("Problem with formdata: {}", e);

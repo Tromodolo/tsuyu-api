@@ -118,3 +118,23 @@ pub async fn get_existing_file_by_hash(hash: &str, user_id: &i64, pool: &Pool<My
     }
     None
 }
+
+pub async fn get_file_by_id(id: &i64, pool: &Pool<MySql>) -> Option<File> {
+    let row = sqlx::query_as::<_, File>("select * from `files` where `id` = ?")
+        .bind(id)
+        .fetch_one(pool)
+        .await;
+
+    if let Ok(file) = row {
+        return Some(file);
+    }
+    None
+}
+
+pub async fn delete_file_by_id(id: &i64, pool: &Pool<MySql>) -> anyhow::Result<()> {
+    sqlx::query("delete from `files` where `id` = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
