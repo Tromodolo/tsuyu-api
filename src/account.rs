@@ -12,7 +12,8 @@ use sqlx::types::chrono;
 
 use crate::db;
 use sqlx::{MySql, Pool};
-use crate::rejections::{Unauthorized, Banned, BadRequest};
+use crate::db;
+use crate::rejections::{Unauthorized, Banned, BadRequest, NotFound, InternalError};
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
@@ -101,7 +102,7 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
                 .await
                 .map_err(|e| {
                     eprintln!("Problem when fetching ban status: {}", e);
-                    warp::reject::reject()
+                    warp::reject::custom(InternalError)
                 })?;
 
             if is_banned == true {
@@ -121,7 +122,7 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
                 .await
                 .map_err(|e| {
                     eprintln!("Reading file error: {}", e);
-                    warp::reject::reject()
+                    warp::reject::custom(InternalError)
                 })?;
 
             let mut hasher = DefaultHasher::new();
@@ -136,7 +137,7 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
             let path = format!("./files/{}", &file_name);
             tokio::fs::write(&path, value).await.map_err(|e| {
                 eprint!("Failed writing file: {}", e);
-                warp::reject::reject()
+                warp::reject::custom(InternalError)
             })?;
 
             let file = File {
@@ -158,17 +159,18 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
                     // If it failed to write to db, delete file from disk
                     let remove = tokio::fs::remove_file(&path)
                         .await;
-                    if let Err(_) = remove {
+                    if let Err(e) = remove {
+                        eprint!("Failed removing file from disk: {}", e);
                         // If we got to this point, something is very wrong, so just go ahead and panic
-                       panic!("Failed removing file from disk");
+                        panic!("Failed removing file from disk");
                     }
-                    Err(warp::reject::reject())
+                    Err(warp::reject::custom(InternalError))
                 }
             }
         }
     }
     // Should never hit this point
-    return Err(warp::reject::reject());
+    return Err(warp::reject::custom(InternalError));
 }
 
 fn get_file_ending (name: &str) -> &str {
