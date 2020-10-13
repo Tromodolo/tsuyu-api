@@ -4,13 +4,12 @@ use futures::TryStreamExt;
 use std::env;
 use bytes::BufMut;
 use serde::{Serialize, Deserialize};
-use uuid::Uuid;
 use std::net::{SocketAddr, IpAddr};
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 use sqlx::types::chrono;
-
-use crate::db;
+use rand::Rng;
+use rand::distributions::Alphanumeric;
 use sqlx::{MySql, Pool};
 use crate::db;
 use crate::rejections::{Unauthorized, Banned, BadRequest, NotFound, InternalError};
@@ -110,8 +109,12 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
             }
 
 
+            let rand = rand::thread_rng()
+                .sample_iter(&Alphanumeric)
+                .take(12)
+                .collect::<String>();
             let file_extension = get_file_ending(&original_file_name);
-            let file_name = format!("{}{}", Uuid::new_v4().to_simple().to_string().to_lowercase(), &file_extension);
+            let file_name = format!("{}{}", rand, &file_extension);
 
             let value = p
                 .stream()
@@ -174,14 +177,15 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
 }
 
 fn get_file_ending (name: &str) -> &str {
-    let mut index = 0;
+    let mut found_period = 0;
 
+    let mut index = 0;
     for c in name.chars() {
         if c == '.' {
-            break;
+            found_period = index;
         }
         index += 1;
     }
 
-    return &name[index..];
+    return &name[found_period..];
 }
