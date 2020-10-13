@@ -14,20 +14,18 @@ use std::net::SocketAddr;
 pub fn get_routes (db: &Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     files(db.clone())
         .or(users(db.clone()))
+        .or(serve_web())
 }
 
-fn files(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    get_files()
-        .or(upload_file(db.clone()))
-}
 
+// File serving
+fn serve_web() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::fs::dir("./public")
+}
 fn get_files() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::fs::dir("./files")
 }
 
-// fn get_file_list() {
-//
-// }
 
 fn files(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     get_files()
