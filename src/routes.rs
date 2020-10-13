@@ -37,7 +37,7 @@ fn files(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = war
 fn upload_file(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path("upload")
         .and(warp::post())
-        .and(warp::multipart::form().max_length(5_000_000))
+        .and(warp::multipart::form().max_length(5_000_000_000))
         .and(with_db(db.clone()))
         .and(warp::any().and(warp::header::<String>("authorization").and(with_db(db.clone())).and_then(account::get_user)))
         .and(warp::addr::remote().map(|socket: Option<SocketAddr>| { socket }))
