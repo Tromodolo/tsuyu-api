@@ -69,7 +69,7 @@ pub async fn check_user_login (data: &UserLoginData, pool: &Pool<MySql>) -> Opti
     None
 }
 
-pub async fn get_user_by_token(token: String, pool: &Pool<MySql>) -> Option<User> {
+pub async fn get_user_by_token(token: &String, pool: &Pool<MySql>) -> Option<User> {
     let row = sqlx::query_as::<_, User>("select * from `users` where `api_key` = ?")
         .bind(token)
         .fetch_one(pool)
@@ -79,6 +79,19 @@ pub async fn get_user_by_token(token: String, pool: &Pool<MySql>) -> Option<User
         return Some(user);
     }
     None
+}
+
+pub async fn get_files_for_user(page: &i64, user: &User, pool: &Pool<MySql>) -> anyhow::Result<Vec<File>> {
+    let mut rows = sqlx::query_as::<_, File>("select * from `files` where `uploaded_by` = ? limit 20 offset ?")
+        .bind(&user.id)
+        .bind((page - 1) * 20)
+        .fetch(pool);
+
+    let mut list: Vec<File> = vec![];
+    while let Some(file) = rows.try_next().await? {
+        list.push(file);
+    }
+    return Ok(list);
 }
 
 pub async fn write_file(file: &File, pool: &Pool<MySql>) -> anyhow::Result<()> {

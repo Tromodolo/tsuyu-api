@@ -4,7 +4,6 @@ use crate::account;
 use std::net::SocketAddr;
 
 // TODO: <Endpoints>
-// Files with indexing
 // Reset token
 // Register user
 // Update password
@@ -29,6 +28,7 @@ fn get_files() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejectio
 
 fn files(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     get_files()
+        .or(lookup_files(db.clone()))
         .or(upload_file(db.clone()))
         .or(delete_file(db.clone()))
 }
@@ -49,6 +49,15 @@ fn delete_file(db:Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error 
         .and(with_db(db.clone()))
         .and(warp::any().and(warp::header::<String>("authorization").and(with_db(db.clone())).and_then(account::get_user)))
         .and_then(account::delete_file)
+}
+fn lookup_files(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path("files")
+        .and(warp::get())
+        .and(warp::path::param()
+            .map(|page: i64| { page }))
+        .and(with_db(db.clone()))
+        .and(warp::any().and(warp::header::<String>("authorization").and(with_db(db.clone())).and_then(account::get_user)))
+        .and_then(account::get_files)
 }
 
 

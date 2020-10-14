@@ -33,8 +33,8 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
 
 async fn handle_error(err: Rejection) -> Result<impl Reply, Infallible> {
     let (code, message) =
-        if err.find::<rejections::NotFound>().is_some() {
-            (StatusCode::NOT_FOUND, String::from("File not found"))
+        if err.find::<rejections::NotFound>().is_some() || err.is_not_found() {
+            (StatusCode::NOT_FOUND, String::from("Resource not found"))
         }
         else if err.find::<warp::reject::PayloadTooLarge>().is_some() {
             (StatusCode::BAD_REQUEST, String::from("Payload too large"))

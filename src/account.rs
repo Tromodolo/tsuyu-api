@@ -100,6 +100,16 @@ pub async fn delete_file(id: i64, db: Pool<MySql>, user: User) -> Result<impl Re
     }
 }
 
+pub async fn get_files(page: i64, db: Pool<MySql>, user: User) -> Result<impl Reply, warp::reject::Rejection> {
+    return match db::get_files_for_user(&page, &user, &db).await {
+        Ok(files) => Ok(warp::reply::json(&files)),
+        Err(err) => {
+            eprint!("Failed fetching file list: {}", err);
+            Err(warp::reject::custom(InternalError))
+        },
+    };
+}
+
 pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip: Option<SocketAddr>) -> Result<impl Reply, Rejection> {
     let parts: Vec<Part> = form.try_collect().await.map_err(|e| {
         eprintln!("Problem with formdata: {}", e);
