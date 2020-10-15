@@ -2,18 +2,13 @@ use warp::{Filter};
 use sqlx::{MySql, Pool};
 use crate::account;
 use std::net::SocketAddr;
-
-// TODO: <Endpoints>
-// Reset token
-// Register user
-// Update password
-// Getting current server's status for max file upload etc
-// TODO: </Endpoints>
+use serde::{Serialize, Deserialize};
 
 pub fn get_routes (db: &Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     files(db.clone())
         .or(users(db.clone()))
         .or(serve_web())
+        .or(settings())
 }
 
 
@@ -25,6 +20,24 @@ fn get_files() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejectio
     warp::fs::dir("./files")
 }
 
+// TODO: Connect this to a config file instead of hardcoding it
+fn settings() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path("settings")
+        .and(warp::get())
+        .and_then(return_settings)
+}
+async fn return_settings() -> Result<impl warp::Reply, warp::Rejection> {
+    #[derive(Serialize, Deserialize)]
+    struct Settings {
+        register_enabled: bool,
+        max_file_size: i64,
+    }
+
+    Ok(warp::reply::json(&Settings {
+        register_enabled: true,
+        max_file_size: 5000,
+    }))
+}
 
 fn files(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     get_files()
