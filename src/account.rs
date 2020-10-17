@@ -11,8 +11,21 @@ use sqlx::types::chrono;
 use rand::Rng;
 use rand::distributions::Alphanumeric;
 use sqlx::{MySql, Pool};
+use bcrypt::{DEFAULT_COST, hash, verify};
 use crate::db;
-use crate::rejections::{Unauthorized, Banned, BadRequest, NotFound, InternalError};
+use crate::rejections::{Unauthorized, Banned, BadRequest, NotFound, InternalError, LoginTaken};
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct File {
+    pub id: i64,
+    pub original_name: String,
+    pub name: String,
+    pub filetype: String,
+    pub file_hash: String,
+    pub uploaded_by: i64,
+    pub uploaded_by_ip: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
@@ -28,39 +41,159 @@ pub struct User {
     pub hashed_password: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct File {
-    pub id: i64,
-    pub original_name: String,
-    pub name: String,
-    pub filetype: String,
-    pub file_hash: String,
-    pub uploaded_by: i64,
-    pub uploaded_by_ip: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
-pub struct UserLoginData {
+pub struct UserLogin {
     pub username: String,
     pub password: String,
 }
 
-pub async fn login_user(data: UserLoginData, db: Pool<MySql>) -> Result<impl warp::Reply, warp::reject::Rejection> {
-    let user = db::check_user_login(&data, &db).await;
-    if let Some(data) = user {
-        return Ok(warp::reply::json(&data));
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserRegister {
+    pub username: String,
+    pub password: String,
+    pub email: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PasswordUpdate {
+    pub password: String,
+    pub new_password: String,
+}
+
+pub async fn register_user(data: UserRegister, db: Pool<MySql>) -> Result<impl warp::Reply, warp::reject::Rejection> {
+    let email = &data.email.unwrap_or_else(|| String::from(""));
+    let check_taken = db::check_if_username_or_email_used(&data.username, email, &db).await;
+    match check_taken {
+        Ok(taken) => {
+            if taken {
+                return Err(warp::reject::custom(LoginTaken));
+            }
+        },
+        Err(err) => {
+            eprint!("Error when trying to register a user: {}", err);
+            return Err(warp::reject::custom(InternalError))
+        }
     }
+
+    let token_gen = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(32)
+        .collect::<String>();
+
+    let hash_password = hash(&data.password, DEFAULT_COST);
+    let hashed: String;
+    match hash_password {
+        Ok(pass) => hashed = pass,
+        Err(err) => {
+            eprint!("Failed hashing password: {}", err);
+            return Err(warp::reject::custom(InternalError));
+        }
+    }
+
+    let create_user = db::create_user(&User {
+        id: 0,
+        username: String::from(&data.username),
+        email: Some(String::from(email)),
+        hashed_password: hashed,
+        api_key: Some(token_gen),
+        is_admin: false,
+        last_update: chrono::Utc::now(),
+        created_at: chrono::Utc::now(),
+    }, &db).await;
+
+    if let Err(err) = create_user {
+        eprint!("Failed inserting user into database: {}", err);
+        return Err(warp::reject::custom(InternalError));
+    }
+
+    Ok("Successfully created user")
+}
+
+pub async fn update_user_password(user_id: i64, update_data: PasswordUpdate, db: Pool<MySql>, requester: User) -> Result<impl warp::Reply, warp::Rejection> {
+    if user_id != requester.id && !requester.is_admin {
+        return Err(warp::reject::custom(Unauthorized));
+    }
+
+    let get_user = db::get_user_by_id(&user_id, &db).await;
+    let user: User;
+    match get_user {
+        Some(usr) => user = usr,
+        None => return Err(warp::reject::custom(InternalError)),
+    }
+
+    // // Verify old password
+    match verify(&update_data.password, &user.hashed_password) {
+         Ok(is_correct) => {
+             if !is_correct {
+                return Err(warp::reject::custom(Unauthorized));
+             }
+        },
+        Err(err) => {
+            eprintln!("Error when trying to verify password when updating {}", err);
+            return Err(warp::reject::custom(Unauthorized));
+        }
+    }
+
+    // Hash new password
+    let hash_password = hash(&update_data.new_password, DEFAULT_COST);
+    let hashed: String;
+    match hash_password {
+        Ok(pass) => hashed = pass,
+        Err(err) => {
+            eprint!("Failed hashing password: {}", err);
+            return Err(warp::reject::custom(InternalError));
+        }
+    }
+
+    let update = db::update_password(&user_id, &hashed, &db).await;
+    if let Err(err) = update {
+        eprint!("Failed updating user: {}", err);
+        return Err(warp::reject::custom(InternalError));
+    }
+
+    Ok("Successfully updated user")
+}
+
+pub async fn reset_user_token(user_id: i64, db: Pool<MySql>, requester: User) -> Result<impl warp::Reply, warp::Rejection> {
+    let token_gen = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(32)
+        .collect::<String>();
+
+    if !(user_id == requester.id || requester.is_admin){
+        return Err(warp::reject::custom(Unauthorized));
+    }
+
+    let update = db::update_user_token(&user_id, &token_gen, &db).await;
+    if let Err(err) = update {
+        eprint!("Failed resetting user's token: {}", err);
+        return Err(warp::reject::custom(InternalError));
+    }
+
+    Ok("Successfully reset token")
+}
+
+pub async fn login_user(data: UserLogin, db: Pool<MySql>) -> Result<impl warp::Reply, warp::reject::Rejection> {
+    let get_user = db::check_user_login(&data, &db).await;
+    if let Some(user) = get_user {
+        if let Ok(correct) = verify(&data.password, &user.hashed_password) {
+            if correct {
+                return Ok(warp::reply::json(&user));
+            }
+        }
+    }
+
     Err(warp::reject::custom(Unauthorized))
 }
 
 pub async fn get_user(token: String, db: Pool<MySql>) -> Result<User, warp::reject::Rejection> {
-    let user = db::get_user_by_token(token, &db).await;
+    let user = db::get_user_by_token(&token, &db).await;
     if let Some(data) = user {
         return Ok(data);
     }
     Err(warp::reject::custom(Unauthorized))
 }
+
 
 pub async fn delete_file(id: i64, db: Pool<MySql>, user: User) -> Result<impl Reply, Rejection> {
     let mut can_delete = false;

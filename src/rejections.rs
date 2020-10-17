@@ -15,5 +15,9 @@ pub struct BadRequest;
 impl warp::reject::Reject for BadRequest {}
 
 #[derive(Debug)]
+pub struct LoginTaken;
+impl warp::reject::Reject for LoginTaken {}
+
+#[derive(Debug)]
 pub struct Banned;
 impl warp::reject::Reject for Banned {}

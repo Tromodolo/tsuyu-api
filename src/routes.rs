@@ -76,6 +76,9 @@ fn lookup_files(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Erro
 
 fn users(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     login_user(db.clone())
+        .or(register_user(db.clone()))
+        .or(reset_token(db.clone()))
+        .or(change_password(db.clone()))
 }
 fn login_user(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path("login")
@@ -83,6 +86,32 @@ fn login_user(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error 
         .and(warp::body::content_length_limit(16 * 1024).and(warp::body::json()))
         .and(with_db(db.clone()))
         .and_then(account::login_user)
+}
+fn register_user(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path("register")
+        .and(warp::post())
+        .and(warp::body::content_length_limit(16 * 1024).and(warp::body::json()))
+        .and(with_db(db.clone()))
+        .and_then(account::register_user)
+}
+fn reset_token(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path("reset-token")
+        .and(warp::post())
+        .and(warp::path::param()
+            .map(|page: i64| { page }))
+        .and(with_db(db.clone()))
+        .and(warp::any().and(warp::header::<String>("authorization").and(with_db(db.clone())).and_then(account::get_user)))
+        .and_then(account::reset_user_token)
+}
+fn change_password(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path("change-password")
+        .and(warp::post())
+        .and(warp::path::param()
+            .map(|page: i64| { page }))
+        .and(warp::body::content_length_limit(16 * 1024).and(warp::body::json()))
+        .and(with_db(db.clone()))
+        .and(warp::any().and(warp::header::<String>("authorization").and(with_db(db.clone())).and_then(account::get_user)))
+        .and_then(account::update_user_password)
 }
 
 

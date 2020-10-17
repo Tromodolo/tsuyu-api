@@ -1,9 +1,13 @@
 use sqlx::{MySql, Pool};
 use std::{env, error};
 use sqlx::mysql::{MySqlPoolOptions};
-use bcrypt::{DEFAULT_COST, hash, verify};
-use crate::account::{UserLoginData, User, File};
+use crate::account::{UserLogin, User, File, PasswordUpdate};
 use futures::TryStreamExt;
+
+#[derive(Debug, sqlx::FromRow)]
+struct UserCount {
+    num_count: i64,
+}
 
 // Should only be used once
 pub async fn initialize_db_pool() -> Result<Pool<MySql>, Box<dyn error::Error>> {
@@ -54,17 +58,14 @@ pub async fn create_tables (pool: &Pool<MySql>){
         .execute(pool).await.unwrap();
 }
 
-pub async fn check_user_login (data: &UserLoginData, pool: &Pool<MySql>) -> Option<User> {
+pub async fn check_user_login (data: &UserLogin, pool: &Pool<MySql>) -> Option<User> {
     let row = sqlx::query_as::<_, User>("select * from `users` where `username` = ?")
         .bind(&data.username)
         .fetch_one(pool)
         .await;
 
     if let Ok(user) = row {
-        match verify(&data.password, &user.hashed_password) {
-            Ok(_) => return Some(user),
-            Err(e) => eprint!("Error when trying to verify user password: {}", e),
-        }
+        return Some(user);
     }
     None
 }
@@ -72,6 +73,18 @@ pub async fn check_user_login (data: &UserLoginData, pool: &Pool<MySql>) -> Opti
 pub async fn get_user_by_token(token: &String, pool: &Pool<MySql>) -> Option<User> {
     let row = sqlx::query_as::<_, User>("select * from `users` where `api_key` = ?")
         .bind(token)
+        .fetch_one(pool)
+        .await;
+
+    if let Ok(user) = row {
+        return Some(user);
+    }
+    None
+}
+
+pub async fn get_user_by_id(id: &i64, pool: &Pool<MySql>) -> Option<User> {
+    let row = sqlx::query_as::<_, User>("select * from `users` where `id` = ?")
+        .bind(id)
         .fetch_one(pool)
         .await;
 
@@ -92,6 +105,52 @@ pub async fn get_files_for_user(page: &i64, user: &User, pool: &Pool<MySql>) -> 
         list.push(file);
     }
     return Ok(list);
+}
+
+pub async fn check_if_username_or_email_used(username: &String, email: &String, pool: &Pool<MySql>) -> anyhow::Result<bool> {
+    let mut rows = sqlx::query_as::<_, UserCount>("select COUNT(*) num_count from `users` where username = ? or email = ?")
+        .bind(username)
+        .bind(email)
+        .fetch(pool);
+
+    if let Some(count) = rows.try_next().await? {
+        if count.num_count > 0 {
+            return Ok(true);
+        }
+    }
+    return Ok(false);
+}
+
+pub async fn create_user(user: &User, pool: &Pool<MySql>) -> anyhow::Result<()> {
+    sqlx::query("insert into `users` (username, hashed_password, email, is_admin, api_key, last_update, created_at) values (?, ?, ?, ?, ?, ?, ?)")
+        .bind(&user.username)
+        .bind(&user.hashed_password)
+        .bind(&user.email)
+        .bind(&user.is_admin)
+        .bind(&user.api_key)
+        .bind(&user.last_update)
+        .bind(&user.created_at)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn update_user_token(user_id: &i64, token: &String, pool: &Pool<MySql>) -> anyhow::Result<()> {
+    sqlx::query("update `users` set `api_Key`=? where id = ?")
+        .bind(token)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn update_password(user_id: &i64, new_password: &String, pool: &Pool<MySql>) -> anyhow::Result<()> {
+    sqlx::query("update `users` set `hashed_password`=? where id = ?")
+        .bind(new_password)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+    Ok(())
 }
 
 pub async fn write_file(file: &File, pool: &Pool<MySql>) -> anyhow::Result<()> {
