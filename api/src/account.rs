@@ -75,10 +75,11 @@ pub async fn register_user(data: UserRegister, db: Pool<MySql>) -> Result<impl w
         }
     }
 
-    let token_gen = rand::thread_rng()
+	let token_gen: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
-        .take(32)
-        .collect::<String>();
+        .take(30)
+        .map(char::from)
+        .collect();
 
     let hash_password = hash(&data.password, DEFAULT_COST);
     let hashed: String;
@@ -155,10 +156,11 @@ pub async fn update_user_password(user_id: i64, update_data: PasswordUpdate, db:
 }
 
 pub async fn reset_user_token(user_id: i64, db: Pool<MySql>, requester: User) -> Result<impl warp::Reply, warp::Rejection> {
-    let token_gen = rand::thread_rng()
+    let token_gen: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
-        .take(32)
-        .collect::<String>();
+        .take(30)
+        .map(char::from)
+        .collect();
 
     if !(user_id == requester.id || requester.is_admin){
         return Err(warp::reject::custom(Unauthorized));
@@ -289,11 +291,12 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
                 return Err(warp::reject::custom(Banned));
             }
 
+			let rand: String = rand::thread_rng()
+				.sample_iter(&Alphanumeric)
+				.take(30)
+				.map(char::from)
+				.collect();
 
-            let rand = rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(12)
-                .collect::<String>();
             let file_extension = get_file_ending(&original_file_name);
             let file_name = format!("{}{}", rand, &file_extension);
 
