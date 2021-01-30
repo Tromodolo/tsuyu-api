@@ -16,7 +16,13 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
             ErrorKind::AlreadyExists => (),
             _ => panic!("Failed to create files folder"),
         }
-    }
+	}
+	if let Err(e) = fs::create_dir("./public") {
+        match e.kind() {
+            ErrorKind::AlreadyExists => (),
+            _ => panic!("Failed to create public folder"),
+        }
+	}
 
     let db: Pool<MySql> = db::initialize_db_pool().await.expect("Failed to initialize database connection");
     db::create_tables(&db).await;
@@ -26,7 +32,7 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
     /* Router Setup */
     let router = routes.recover(handle_error);
     println!("Server started at localhost:8080");
-    warp::serve(router).run(([0, 0, 0, 0], 8080)).await;
+	warp::serve(router).run(([0, 0, 0, 0], 8080)).await;
 
     Ok(())
 }
