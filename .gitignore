@@ -7,3 +7,7 @@
 
 /.idea/
 files/
+bin/
+target/
+node_modules/
+.sync-exclude.lst
