@@ -1,7 +1,7 @@
 use sqlx::{MySql, Pool};
 use std::{env, error};
 use sqlx::mysql::{MySqlPoolOptions};
-use crate::account::{UserLogin, User, File, PasswordUpdate};
+use crate::account::{UserLogin, User, File};
 use futures::TryStreamExt;
 
 #[derive(Debug, sqlx::FromRow)]
