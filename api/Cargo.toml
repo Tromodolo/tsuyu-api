@@ -9,7 +9,9 @@ opt-level=3
 codegen-units=1
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
+# this will have to wait until sqlx 0.5 releases with tokio 1.0 support
+# tokio = { version = "1", features = ["full"] }
+tokio = { version = "0.2.21", features = ["macros", "rt-threaded", "fs"] }
 warp = "0.3"
 futures = { version = "0.3.12", default-features = false }
 bytes = "1.0.1"
