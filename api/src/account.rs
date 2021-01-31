@@ -21,7 +21,8 @@ pub struct File {
     pub original_name: String,
     pub name: String,
     pub filetype: String,
-    pub file_hash: String,
+	pub file_hash: String,
+	pub file_size: u32,
     pub uploaded_by: i64,
     pub uploaded_by_ip: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -302,12 +303,14 @@ pub async fn upload_file(form: FormData, conn: Pool<MySql>, user: User, socket_i
 				.collect();
 
             let file_extension = get_file_ending(&original_file_name);
-            let file_name = format!("{}{}", rand, &file_extension);
+			let file_name = format!("{}{}", rand, &file_extension);
+			let mut file_size: u32 = 0;
 
             let value = p
                 .stream()
                 .try_fold(Vec::new(), |mut vec, data| {
-                    vec.put(data);
+					vec.put(data);
+					file_size = (vec.iter().len() / 1000) as u32;
                     async move { Ok(vec) }
                 })
                 .await
@@ -338,7 +341,8 @@ pub async fn upload_file(form: FormData, conn: Pool<MySql>, user: User, socket_i
                 filetype: content_type,
                 uploaded_by: user.id,
                 uploaded_by_ip: ip_string,
-                file_hash,
+				file_hash,
+				file_size, // In kb
                 created_at: chrono::Utc::now(),
             };
 
