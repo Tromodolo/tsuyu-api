@@ -8,6 +8,7 @@ pub struct ServerConfig {
 	pub database_url: String,
 	pub register_enabled: bool,
 	pub max_file_size_bytes: u64,
+	pub file_name_length: u8,
 }
 
 impl ::std::default::Default for ServerConfig {
@@ -17,6 +18,7 @@ impl ::std::default::Default for ServerConfig {
 			max_file_size_bytes: 100_000_000,
 			port: 6000,
 			register_enabled: true,
+			file_name_length: 12,
 		}
 	}
 }

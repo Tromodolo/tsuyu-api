@@ -291,9 +291,10 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
                 return Err(warp::reject::custom(Banned));
             }
 
+			let cnf: crate::config::ServerConfig = crate::config::get_server_config().unwrap();
 			let rand: String = rand::thread_rng()
 				.sample_iter(&Alphanumeric)
-				.take(30)
+				.take(cnf.file_name_length.into())
 				.map(char::from)
 				.collect();
 
