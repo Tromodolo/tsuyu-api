@@ -11,3 +11,4 @@ bin/
 target/
 node_modules/
 .sync-exclude.lst
+api/server_config.toml

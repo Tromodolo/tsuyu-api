@@ -1,8 +1,10 @@
 use warp::{Filter};
 use sqlx::{MySql, Pool};
-use crate::account;
 use std::net::SocketAddr;
 use serde::{Serialize, Deserialize};
+use crate::account;
+use crate::config;
+
 
 pub fn get_routes (db: &Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     files(db.clone())
@@ -27,15 +29,17 @@ fn settings() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection
         .and_then(return_settings)
 }
 async fn return_settings() -> Result<impl warp::Reply, warp::Rejection> {
+	let cnf: config::ServerConfig = config::get_server_config().unwrap();
+
     #[derive(Serialize, Deserialize)]
     struct Settings {
         register_enabled: bool,
-        max_file_size: i64,
+        max_file_size_bytes: u64,
     }
 
     Ok(warp::reply::json(&Settings {
-        register_enabled: true,
-        max_file_size: 5000,
+        register_enabled: cnf.register_enabled,
+        max_file_size_bytes: cnf.max_file_size_bytes,
     }))
 }
 
@@ -46,9 +50,11 @@ fn files(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = war
         .or(delete_file(db.clone()))
 }
 fn upload_file(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+	let cnf: config::ServerConfig = config::get_server_config().unwrap();
+	
     warp::path("upload")
         .and(warp::post())
-        .and(warp::multipart::form().max_length(5_000_000_000))
+        .and(warp::multipart::form().max_length(cnf.max_file_size_bytes))
         .and(with_db(db.clone()))
         .and(warp::any().and(warp::header::<String>("authorization").and(with_db(db.clone())).and_then(account::get_user)))
         .and(warp::addr::remote().map(|socket: Option<SocketAddr>| { socket }))

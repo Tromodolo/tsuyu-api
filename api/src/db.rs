@@ -1,5 +1,5 @@
 use sqlx::{MySql, Pool};
-use std::{env, error};
+use std::{error};
 use sqlx::mysql::{MySqlPoolOptions};
 use crate::account::{UserLogin, User, File};
 use futures::TryStreamExt;
@@ -10,10 +10,10 @@ struct UserCount {
 }
 
 // Should only be used once
-pub async fn initialize_db_pool() -> Result<Pool<MySql>, Box<dyn error::Error>> {
+pub async fn initialize_db_pool(db_url: &str) -> Result<Pool<MySql>, Box<dyn error::Error>> {
     let pool = MySqlPoolOptions::new()
         .max_connections(5)
-        .connect(&env::var("DATABASE_URL")?).await?;
+        .connect(db_url).await?;
     Ok(pool)
 }
 
