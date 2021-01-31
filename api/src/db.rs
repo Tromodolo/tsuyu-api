@@ -6,7 +6,7 @@ use futures::TryStreamExt;
 
 #[derive(Debug, sqlx::FromRow)]
 struct UserCount {
-    num_count: i64,
+    num_count: u16,
 }
 
 // Should only be used once
@@ -17,7 +17,7 @@ pub async fn initialize_db_pool(db_url: &str) -> Result<Pool<MySql>, Box<dyn err
     Ok(pool)
 }
 
-pub async fn create_tables (pool: &Pool<MySql>){
+pub async fn create_tables (conn: &Pool<MySql>){
     sqlx::query("\
         create table if not exists `users` (
             `id` int PRIMARY KEY AUTO_INCREMENT,
@@ -29,7 +29,7 @@ pub async fn create_tables (pool: &Pool<MySql>){
             `last_update` datetime not null,
             `created_at` datetime not null
         );"
-    ).execute(pool).await.unwrap();
+    ).execute(conn).await.unwrap();
 
     sqlx::query("\
         create table if not exists `files` (
@@ -42,26 +42,26 @@ pub async fn create_tables (pool: &Pool<MySql>){
             `uploaded_by_ip` varchar(50) not null,
             `created_at` datetime not null
         );"
-    ).execute(pool).await.unwrap();
+    ).execute(conn).await.unwrap();
 
     sqlx::query("\
         create table if not exists `banned_ips` (
           `id` int PRIMARY KEY AUTO_INCREMENT,
           `ip` varchar(50)
         );"
-    ).execute(pool).await.unwrap();
+    ).execute(conn).await.unwrap();
 
     // Drop and recreate foreign key to make sure that it always exists only once
     sqlx::query("alter table `files` drop foreign key if exists `files_user_id`;")
-         .execute(pool).await.unwrap();
+         .execute(conn).await.unwrap();
     sqlx::query("alter table `files` add foreign key `files_user_id` (`uploaded_by`) references `users` (`id`);")
-        .execute(pool).await.unwrap();
+        .execute(conn).await.unwrap();
 }
 
-pub async fn check_user_login (data: &UserLogin, pool: &Pool<MySql>) -> Option<User> {
+pub async fn check_user_login (data: &UserLogin, conn: &Pool<MySql>) -> Option<User> {
     let row = sqlx::query_as::<_, User>("select * from `users` where `username` = ?")
         .bind(&data.username)
-        .fetch_one(pool)
+        .fetch_one(conn)
         .await;
 
     if let Ok(user) = row {
@@ -70,10 +70,10 @@ pub async fn check_user_login (data: &UserLogin, pool: &Pool<MySql>) -> Option<U
     None
 }
 
-pub async fn get_user_by_token(token: &String, pool: &Pool<MySql>) -> Option<User> {
+pub async fn get_user_by_token(token: &String, conn: &Pool<MySql>) -> Option<User> {
     let row = sqlx::query_as::<_, User>("select * from `users` where `api_key` = ?")
         .bind(token)
-        .fetch_one(pool)
+        .fetch_one(conn)
         .await;
 
     if let Ok(user) = row {
@@ -82,10 +82,10 @@ pub async fn get_user_by_token(token: &String, pool: &Pool<MySql>) -> Option<Use
     None
 }
 
-pub async fn get_user_by_id(id: &i64, pool: &Pool<MySql>) -> Option<User> {
+pub async fn get_user_by_id(id: &i64, conn: &Pool<MySql>) -> Option<User> {
     let row = sqlx::query_as::<_, User>("select * from `users` where `id` = ?")
         .bind(id)
-        .fetch_one(pool)
+        .fetch_one(conn)
         .await;
 
     if let Ok(user) = row {
@@ -94,11 +94,11 @@ pub async fn get_user_by_id(id: &i64, pool: &Pool<MySql>) -> Option<User> {
     None
 }
 
-pub async fn get_files_for_user(page: &i64, user: &User, pool: &Pool<MySql>) -> anyhow::Result<Vec<File>> {
+pub async fn get_files_for_user(page: &i64, user: &User, conn: &Pool<MySql>) -> anyhow::Result<Vec<File>> {
     let mut rows = sqlx::query_as::<_, File>("select * from `files` where `uploaded_by` = ? limit 20 offset ?")
         .bind(&user.id)
         .bind((page - 1) * 20)
-        .fetch(pool);
+        .fetch(conn);
 
     let mut list: Vec<File> = vec![];
     while let Some(file) = rows.try_next().await? {
@@ -107,11 +107,11 @@ pub async fn get_files_for_user(page: &i64, user: &User, pool: &Pool<MySql>) -> 
     return Ok(list);
 }
 
-pub async fn check_if_username_or_email_used(username: &String, email: &String, pool: &Pool<MySql>) -> anyhow::Result<bool> {
+pub async fn check_if_username_or_email_used(username: &String, email: &String, conn: &Pool<MySql>) -> anyhow::Result<bool> {
     let mut rows = sqlx::query_as::<_, UserCount>("select COUNT(*) num_count from `users` where username = ? or email = ?")
         .bind(username)
         .bind(email)
-        .fetch(pool);
+        .fetch(conn);
 
     if let Some(count) = rows.try_next().await? {
         if count.num_count > 0 {
@@ -121,7 +121,7 @@ pub async fn check_if_username_or_email_used(username: &String, email: &String, 
     return Ok(false);
 }
 
-pub async fn create_user(user: &User, pool: &Pool<MySql>) -> anyhow::Result<()> {
+pub async fn create_user(user: &User, conn: &Pool<MySql>) -> anyhow::Result<()> {
     sqlx::query("insert into `users` (username, hashed_password, email, is_admin, api_key, last_update, created_at) values (?, ?, ?, ?, ?, ?, ?)")
         .bind(&user.username)
         .bind(&user.hashed_password)
@@ -130,30 +130,30 @@ pub async fn create_user(user: &User, pool: &Pool<MySql>) -> anyhow::Result<()> 
         .bind(&user.api_key)
         .bind(&user.last_update)
         .bind(&user.created_at)
-        .execute(pool)
+        .execute(conn)
         .await?;
     Ok(())
 }
 
-pub async fn update_user_token(user_id: &i64, token: &String, pool: &Pool<MySql>) -> anyhow::Result<()> {
+pub async fn update_user_token(user_id: &i64, token: &String, conn: &Pool<MySql>) -> anyhow::Result<()> {
     sqlx::query("update `users` set `api_Key`=? where id = ?")
         .bind(token)
         .bind(user_id)
-        .execute(pool)
+        .execute(conn)
         .await?;
     Ok(())
 }
 
-pub async fn update_password(user_id: &i64, new_password: &String, pool: &Pool<MySql>) -> anyhow::Result<()> {
+pub async fn update_password(user_id: &i64, new_password: &String, conn: &Pool<MySql>) -> anyhow::Result<()> {
     sqlx::query("update `users` set `hashed_password`=? where id = ?")
         .bind(new_password)
         .bind(user_id)
-        .execute(pool)
+        .execute(conn)
         .await?;
     Ok(())
 }
 
-pub async fn write_file(file: &File, pool: &Pool<MySql>) -> anyhow::Result<()> {
+pub async fn write_file(file: &File, conn: &Pool<MySql>) -> anyhow::Result<()> {
     sqlx::query("insert into `files` (name, original_name, filetype, file_hash, uploaded_by, uploaded_by_ip, created_at) values (?, ?, ?, ?, ?, ?, ?)")
         .bind(&file.name)
         .bind(&file.original_name)
@@ -162,15 +162,15 @@ pub async fn write_file(file: &File, pool: &Pool<MySql>) -> anyhow::Result<()> {
         .bind(&file.uploaded_by)
         .bind(&file.uploaded_by_ip)
         .bind(&file.created_at)
-        .execute(pool)
+        .execute(conn)
         .await?;
     Ok(())
 }
 
-pub async fn is_ip_banned(ip: &str, pool: &Pool<MySql>) -> anyhow::Result<bool> {
+pub async fn is_ip_banned(ip: &str, conn: &Pool<MySql>) -> anyhow::Result<bool> {
     let mut rows = sqlx::query("select * from `banned_ips` where `ip` = ?")
         .bind(ip)
-        .fetch(pool);
+        .fetch(conn);
 
     if let Some(_) = rows.try_next().await? {
         return Ok(true);
@@ -178,11 +178,11 @@ pub async fn is_ip_banned(ip: &str, pool: &Pool<MySql>) -> anyhow::Result<bool> 
     return Ok(false);
 }
 
-pub async fn get_existing_file_by_hash(hash: &str, user_id: &i64, pool: &Pool<MySql>) -> Option<File> {
+pub async fn get_existing_file_by_hash(hash: &str, user_id: &i64, conn: &Pool<MySql>) -> Option<File> {
     let row = sqlx::query_as::<_, File>("select * from `files` where `uploaded_by` = ? and `file_hash` = ?")
         .bind(user_id)
         .bind(hash)
-        .fetch_one(pool)
+        .fetch_one(conn)
         .await;
 
     if let Ok(file) = row {
@@ -191,10 +191,10 @@ pub async fn get_existing_file_by_hash(hash: &str, user_id: &i64, pool: &Pool<My
     None
 }
 
-pub async fn get_file_by_id(id: &i64, pool: &Pool<MySql>) -> Option<File> {
+pub async fn get_file_by_id(id: &i64, conn: &Pool<MySql>) -> Option<File> {
     let row = sqlx::query_as::<_, File>("select * from `files` where `id` = ?")
         .bind(id)
-        .fetch_one(pool)
+        .fetch_one(conn)
         .await;
 
     if let Ok(file) = row {
@@ -203,10 +203,10 @@ pub async fn get_file_by_id(id: &i64, pool: &Pool<MySql>) -> Option<File> {
     None
 }
 
-pub async fn delete_file_by_id(id: &i64, pool: &Pool<MySql>) -> anyhow::Result<()> {
+pub async fn delete_file_by_id(id: &i64, conn: &Pool<MySql>) -> anyhow::Result<()> {
     sqlx::query("delete from `files` where `id` = ?")
         .bind(id)
-        .execute(pool)
+        .execute(conn)
         .await?;
     Ok(())
 }
