@@ -89,7 +89,10 @@ pub async fn register_user(data: UserRegister, conn: Pool<MySql>) -> Result<impl
             eprint!("Failed hashing password: {}", err);
             return Err(warp::reject::custom(InternalError));
         }
-    }
+	}
+	
+	let num_users = db::get_number_of_users(&conn).await.unwrap();
+	let is_admin = if num_users == 0 { true } else { false };
 
     let create_user = db::create_user(&User {
         id: 0,
@@ -97,7 +100,7 @@ pub async fn register_user(data: UserRegister, conn: Pool<MySql>) -> Result<impl
         email: Some(String::from(email)),
         hashed_password: hashed,
         api_key: Some(token_gen),
-        is_admin: false,
+        is_admin,
         last_update: chrono::Utc::now(),
         created_at: chrono::Utc::now(),
     }, &conn).await;

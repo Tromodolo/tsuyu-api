@@ -210,3 +210,15 @@ pub async fn delete_file_by_id(id: &i64, conn: &Pool<MySql>) -> anyhow::Result<(
         .await?;
     Ok(())
 }
+
+pub async fn get_number_of_users(conn: &Pool<MySql>) -> anyhow::Result<u16> {
+	let mut rows = sqlx::query_as::<_, UserCount>("select COUNT(*) num_count from `users`")
+        .fetch(conn);
+
+    if let Some(count) = rows.try_next().await? {
+        if count.num_count > 0 {
+            return Ok(count.num_count);
+        }
+    }
+    return Ok(0);
+}
