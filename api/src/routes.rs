@@ -56,7 +56,7 @@ fn upload_file(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error
         .and(warp::post())
         .and(warp::multipart::form().max_length(cnf.max_file_size_bytes))
         .and(with_db(db.clone()))
-        .and(warp::any().and(warp::header::<String>("authorization").and(with_db(db.clone())).and_then(account::get_user)))
+        .and(with_user(db.clone()))
         .and(warp::addr::remote().map(|socket: Option<SocketAddr>| { socket }))
         .and_then(account::upload_file)
 }
@@ -66,7 +66,7 @@ fn delete_file(db:Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error 
         .and(warp::path::param()
             .map(|id: i64| { id }))
         .and(with_db(db.clone()))
-        .and(warp::any().and(warp::header::<String>("authorization").and(with_db(db.clone())).and_then(account::get_user)))
+        .and(with_user(db.clone()))
         .and_then(account::delete_file)
 }
 fn lookup_files(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -75,7 +75,7 @@ fn lookup_files(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Erro
         .and(warp::path::param()
             .map(|page: i64| { page }))
         .and(with_db(db.clone()))
-        .and(warp::any().and(warp::header::<String>("authorization").and(with_db(db.clone())).and_then(account::get_user)))
+        .and(with_user(db.clone()))
         .and_then(account::get_files)
 }
 
@@ -106,7 +106,7 @@ fn reset_token(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error
         .and(warp::path::param()
             .map(|page: i64| { page }))
         .and(with_db(db.clone()))
-        .and(warp::any().and(warp::header::<String>("authorization").and(with_db(db.clone())).and_then(account::get_user)))
+        .and(with_user(db.clone()))
         .and_then(account::reset_user_token)
 }
 fn change_password(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -116,11 +116,15 @@ fn change_password(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, E
             .map(|page: i64| { page }))
         .and(warp::body::content_length_limit(16 * 1024).and(warp::body::json()))
         .and(with_db(db.clone()))
-        .and(warp::any().and(warp::header::<String>("authorization").and(with_db(db.clone())).and_then(account::get_user)))
+        .and(with_user(db.clone()))
         .and_then(account::update_user_password)
 }
 
 
 fn with_db(db: Pool<MySql>) -> impl Filter<Extract = (Pool<MySql>,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || db.clone())
+}
+
+fn with_user(db: Pool<MySql>) -> impl Filter<Extract = (account::User,), Error = warp::Rejection> + Clone {
+	warp::any().and(warp::header::<String>("authorization").and(with_db(db.clone())).and_then(account::get_user))
 }
