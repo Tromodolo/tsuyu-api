@@ -1,0 +1,75 @@
+#home {
+	background: url("../assets/bg.jpg");
+	background-size: cover;
+}
+
+.info {
+	filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+	text-align: center;
+	color: #DAE1E7;
+}
+
+.credits {
+	position: absolute;
+	bottom: 15px;
+	left: 15px;
+
+	font-weight: bold;
+	font-size: 20px;
+
+	color: #DAE1E7;
+
+	text-decoration: none;
+}
+
+.title {
+	font-size: 64px;
+	font-weight: bold;
+	line-height: 87px;
+	letter-spacing: 0.02em;
+	margin-bottom: 2px;
+}
+
+.subtitle {
+	margin-top: 0px;
+	font-weight: bold;
+	font-size: 30px;
+	line-height: 41px;
+	letter-spacing: 0.02em;
+}
+
+.description {
+	font-size: 24px;
+	line-height: 33px;
+	letter-spacing: 0.015em;
+}
+
+.interactions {
+	filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+}
+
+#upload-label {
+	display: inline-block;
+
+	width: 320px;
+	max-width: 80vw;
+	height: 50px;
+	line-height: 50px;
+	border-radius: 10px;
+	background: #44E384;
+
+	font-weight: bold;
+	font-size: 20px;
+	letter-spacing: 0.015em;
+	text-align: center;
+
+	color: #434343;
+
+	user-select: none;
+	-moz-user-select: none;
+
+	&:hover {
+		cursor: pointer;
+		background: darken(#44E384, 10);
+	}
+}
