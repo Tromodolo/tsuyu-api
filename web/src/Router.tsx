@@ -4,26 +4,37 @@ import {
 	Switch,
 	Route
 } from "react-router-dom";
+import Navbar from "./components/Navbar";
 import Contact from "./pages/Contact";
 import Dashboard from "./pages/Dashboard";
 import Home from "./pages/Home";
+import { useAuthenticationState } from "./state/user";
 
 const Router = () => {
-	const isAuthenticated = true;
+	const { isLoggedIn } = useAuthenticationState();
 
 	return (
 		<BrowserRouter>
 			<Switch>
 				<Route path="/contact">
-					<Contact />
+					<main className="content">
+						<Navbar activePage="contact"></Navbar>
+						<Contact />
+					</main>
 				</Route>
-				{isAuthenticated ? (
+				{isLoggedIn ? (
 					<Route path="/dashboard">
-						<Dashboard />
+						<main className="content">
+							<Navbar activePage="dashboard"></Navbar>
+							<Dashboard />
+						</main>
 					</Route>
 				) : null}
 				<Route path="/">
-					<Home />
+					<main className="content">
+						<Navbar activePage="home"></Navbar>
+						<Home />
+					</main>
 				</Route>
 			</Switch>
 		</BrowserRouter>

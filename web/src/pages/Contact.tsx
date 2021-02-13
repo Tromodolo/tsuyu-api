@@ -1,11 +1,9 @@
 import React from "react";
-import Navbar from "../components/Navbar";
 import "./Contact.scss";
 
 const Contact = () => {
 	return (
-		<main className="content">
-			<Navbar></Navbar>
+		<>
 			<section className="route" id="contact">
 				<section className="contact">
 					<h1 className="contact-title">Contact</h1>
@@ -17,7 +15,7 @@ const Contact = () => {
 					</p>
 				</section>
 			</section>
-		</main>
+		</>
 	);
 };
 

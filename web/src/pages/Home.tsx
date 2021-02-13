@@ -23,8 +23,7 @@ const Home = () => {
 	};
 
 	return (
-		<main className="content">
-			<Navbar activePage="home"></Navbar>
+		<>
 			<section className="route" id="home">
 				<section className="info">
 					<h1 className="title">tsuyu</h1>
@@ -40,7 +39,7 @@ const Home = () => {
 				</section>
 				<a className="credits" href="https://www.pixiv.net/en/artworks/71865345">Art source: Hang</a>
 			</section>
-		</main>
+		</>
 	)
 };
 

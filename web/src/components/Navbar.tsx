@@ -1,5 +1,7 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useSettings } from "../state/settings";
+import { useAuthenticationState } from "../state/user";
 import Login from "./Login";
 import "./Navbar.scss";
 
@@ -8,9 +10,14 @@ interface NavbarProps {
 }
 
 const Navbar = (props: NavbarProps) => {
-	const isLoggedIn = true;
+	const { isLoggedIn, error, isLoading } = useAuthenticationState();
+	const { register_enabled } = useSettings();
 	const loginButton = useRef<HTMLButtonElement | null>();
 	const [showLoginPopup, setShowLoginPopup] = useState(false);
+
+	useEffect(() => {
+		setShowLoginPopup(false);
+	}, [isLoggedIn]);
 
 	return (
 		<nav className="nav-bar">
@@ -20,14 +27,14 @@ const Navbar = (props: NavbarProps) => {
 			<section className="nav-end">
 				<Link to="" className={props.activePage  === "home" ? "nav-item active" : "nav-item"}>Home</Link>
 				<Link to="contact"  className={props.activePage  === "contact" ? "nav-item active" : "nav-item"}>Contact</Link>
-				{/* {isLoggedIn ? ( */}
-					<button className="nav-item" onClick={() => setShowLoginPopup(!showLoginPopup)} ref={(x) => loginButton.current = x}>Log in</button>
-				{/* ) : ( */}
+				{isLoggedIn ? ( 
 					<Link to="dashboard"  className={props.activePage  === "dashboard" ? "nav-item active" : "nav-item"}>Dashboard</Link>
-				{/* )} */}
+				) : (
+					<button className="nav-item" onClick={() => setShowLoginPopup(!showLoginPopup)} ref={(x) => loginButton.current = x}>Log in</button>
+				)}
 			</section>
 			{showLoginPopup ? (
-				<Login anchorElement={loginButton.current} />
+				<Login anchorElement={loginButton.current} showRegister={register_enabled} error={error} isLoading={isLoading}/>
 			): null}
 		</nav>
 	);
