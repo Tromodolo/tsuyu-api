@@ -95,7 +95,7 @@ pub async fn register_user(data: UserRegister, conn: Pool<MySql>) -> Result<impl
 	let num_users = db::get_number_of_users(&conn).await.unwrap();
 	let is_admin = if num_users == 0 { true } else { false };
 
-    let create_user = db::create_user(&User {
+	let user = User {
         id: 0,
         username: String::from(&data.username),
         email: Some(String::from(email)),
@@ -104,14 +104,15 @@ pub async fn register_user(data: UserRegister, conn: Pool<MySql>) -> Result<impl
         is_admin,
         last_update: chrono::Utc::now(),
         created_at: chrono::Utc::now(),
-    }, &conn).await;
+    };
+    let create_user = db::create_user(&user, &conn).await;
 
     if let Err(err) = create_user {
         eprint!("Failed inserting user into database: {}", err);
         return Err(warp::reject::custom(InternalError));
     }
 
-    Ok("Successfully created user")
+    Ok(warp::reply::json(&user))
 }
 
 pub async fn update_user_password(user_id: i64, update_data: PasswordUpdate, conn: Pool<MySql>, requester: User) -> Result<impl warp::Reply, warp::Rejection> {
