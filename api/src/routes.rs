@@ -46,6 +46,7 @@ async fn return_settings() -> Result<impl warp::Reply, warp::Rejection> {
 fn files(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     get_files()
         .or(lookup_files(db.clone()))
+		.or(get_file_count(db.clone()))
         .or(upload_file(db.clone()))
         .or(delete_file(db.clone()))
 }
@@ -78,6 +79,13 @@ fn lookup_files(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Erro
         .and(with_user(db.clone()))
         .and_then(account::get_files)
 }
+fn get_file_count(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+	warp::path("file-count")
+		.and(warp::get())
+		.and(with_db(db.clone()))
+		.and(with_user(db.clone()))
+		.and_then(account::get_file_count)
+}
 
 
 fn users(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -104,7 +112,7 @@ fn reset_token(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error
     warp::path("reset-token")
         .and(warp::post())
         .and(warp::path::param()
-            .map(|page: i64| { page }))
+            .map(|user_id: i64| { user_id }))
         .and(with_db(db.clone()))
         .and(with_user(db.clone()))
         .and_then(account::reset_user_token)
@@ -113,7 +121,7 @@ fn change_password(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, E
     warp::path("change-password")
         .and(warp::post())
         .and(warp::path::param()
-            .map(|page: i64| { page }))
+            .map(|user_id: i64| { user_id }))
         .and(warp::body::content_length_limit(16 * 1024).and(warp::body::json()))
         .and(with_db(db.clone()))
         .and(with_user(db.clone()))

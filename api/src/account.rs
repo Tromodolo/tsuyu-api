@@ -1,7 +1,6 @@
 use warp::{Rejection, Reply};
 use warp::multipart::{FormData, Part};
 use futures::TryStreamExt;
-use std::env;
 use bytes::BufMut;
 use serde::{Serialize, Deserialize};
 use std::net::{SocketAddr, IpAddr};
@@ -201,6 +200,10 @@ pub async fn get_user(token: String, conn: Pool<MySql>) -> Result<User, warp::re
     Err(warp::reject::custom(Unauthorized))
 }
 
+pub async fn get_file_count(conn: Pool<MySql>, user: User) -> Result<impl warp::Reply, warp::reject::Rejection> {
+	let count = db::get_number_of_files_for_user(&conn, &user.id).await.unwrap();
+	return Ok(warp::reply::json(&count));
+}
 
 pub async fn delete_file(id: i64, conn: Pool<MySql>, user: User) -> Result<impl Reply, Rejection> {
     let mut can_delete = false;
@@ -326,7 +329,7 @@ pub async fn upload_file(form: FormData, conn: Pool<MySql>, user: User, socket_i
 
             let existing_file = db::get_existing_file_by_hash(&file_hash, &user.id, &conn).await;
             if let Some(old_file) = existing_file { // If this errored out, it doesn't really do much, so just ignore it
-                return Ok(format!("{}/{}", &env::var("BASE_URL").expect("Base URL is not set"), &old_file.name));
+                return Ok(format!("{}/{}", &cnf.base_url, &old_file.name));
             }
 
             let path = format!("./files/{}", &file_name);
@@ -349,7 +352,7 @@ pub async fn upload_file(form: FormData, conn: Pool<MySql>, user: User, socket_i
 
             let res = db::write_file(&file, &conn).await;
             return match res {
-                Ok(_) => Ok(format!("{}/{}", &env::var("BASE_URL").expect("Base URL is not set"), &file.name)),
+                Ok(_) => Ok(format!("{}/{}", &cnf.base_url, &file.name)),
                 Err(err) => {
                     eprint!("Failed writing file to database: {}", err);
                     // If it failed to write to db, delete file from disk

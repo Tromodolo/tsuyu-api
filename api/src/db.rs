@@ -1,11 +1,12 @@
 use sqlx::{MySql, Pool};
 use std::{error};
 use sqlx::mysql::{MySqlPoolOptions};
+use serde::Serialize;
 use crate::account::{UserLogin, User, File};
 use futures::TryStreamExt;
 
-#[derive(Debug, sqlx::FromRow)]
-struct UserCount {
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct Count {
     num_count: i64,
 }
 
@@ -96,9 +97,9 @@ pub async fn get_user_by_id(id: &i64, conn: &Pool<MySql>) -> Option<User> {
 }
 
 pub async fn get_files_for_user(page: &i64, user: &User, conn: &Pool<MySql>) -> anyhow::Result<Vec<File>> {
-    let mut rows = sqlx::query_as::<_, File>("select * from `files` where `uploaded_by` = ? limit 20 offset ?")
+    let mut rows = sqlx::query_as::<_, File>("select * from `files` where `uploaded_by` = ? limit 12 offset ?")
         .bind(&user.id)
-        .bind((page - 1) * 20)
+        .bind((page - 1) * 12)
         .fetch(conn);
 
     let mut list: Vec<File> = vec![];
@@ -109,7 +110,7 @@ pub async fn get_files_for_user(page: &i64, user: &User, conn: &Pool<MySql>) -> 
 }
 
 pub async fn check_if_username_or_email_used(username: &String, email: &String, conn: &Pool<MySql>) -> anyhow::Result<bool> {
-    let mut rows = sqlx::query_as::<_, UserCount>("select COUNT(*) num_count from `users` where username = ? or email = ?")
+    let mut rows = sqlx::query_as::<_, Count>("select COUNT(*) num_count from `users` where username = ? or email = ?")
         .bind(username)
         .bind(email)
         .fetch(conn);
@@ -155,11 +156,12 @@ pub async fn update_password(user_id: &i64, new_password: &String, conn: &Pool<M
 }
 
 pub async fn write_file(file: &File, conn: &Pool<MySql>) -> anyhow::Result<()> {
-    sqlx::query("insert into `files` (name, original_name, filetype, file_hash, uploaded_by, uploaded_by_ip, created_at) values (?, ?, ?, ?, ?, ?, ?)")
+    sqlx::query("insert into `files` (name, original_name, filetype, file_hash, file_size, uploaded_by, uploaded_by_ip, created_at) values (?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(&file.name)
         .bind(&file.original_name)
         .bind(&file.filetype)
         .bind(&file.file_hash)
+		.bind(&file.file_size)
         .bind(&file.uploaded_by)
         .bind(&file.uploaded_by_ip)
         .bind(&file.created_at)
@@ -212,14 +214,25 @@ pub async fn delete_file_by_id(id: &i64, conn: &Pool<MySql>) -> anyhow::Result<(
     Ok(())
 }
 
-pub async fn get_number_of_users(conn: &Pool<MySql>) -> anyhow::Result<i64> {
-	let mut rows = sqlx::query_as::<_, UserCount>("select COUNT(*) num_count from `users`")
+pub async fn get_number_of_files_for_user(conn: &Pool<MySql>, user_id: &i64) -> anyhow::Result<Count> {
+	let mut rows = sqlx::query_as::<_, Count>("select COUNT(*) num_count from `files` where `uploaded_by` = ?")
+		.bind(user_id)
         .fetch(conn);
 
     if let Some(count) = rows.try_next().await? {
         if count.num_count > 0 {
-            return Ok(count.num_count);
+            return Ok(count);
         }
+    }
+    return Ok(Count { num_count: 0 });
+}
+
+pub async fn get_number_of_users(conn: &Pool<MySql>) -> anyhow::Result<i64> {
+	let mut rows = sqlx::query_as::<_, Count>("select COUNT(*) num_count from `users`")
+        .fetch(conn);
+
+    if let Some(count) = rows.try_next().await? {
+		return Ok(count.num_count);
     }
     return Ok(0);
 }

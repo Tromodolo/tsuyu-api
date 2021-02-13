@@ -9,6 +9,7 @@ pub struct ServerConfig {
 	pub register_enabled: bool,
 	pub max_file_size_bytes: u64,
 	pub file_name_length: u8,
+	pub base_url: String,
 }
 
 impl ::std::default::Default for ServerConfig {
@@ -16,9 +17,10 @@ impl ::std::default::Default for ServerConfig {
 		Self {
 			database_url: "".into(),
 			max_file_size_bytes: 100_000_000,
-			port: 6000,
+			port: 7000,
 			register_enabled: true,
 			file_name_length: 12,
+			base_url: "http://localhost:7000".into(),
 		}
 	}
 }
