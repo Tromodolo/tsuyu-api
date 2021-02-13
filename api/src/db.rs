@@ -6,7 +6,7 @@ use futures::TryStreamExt;
 
 #[derive(Debug, sqlx::FromRow)]
 struct UserCount {
-    num_count: u16,
+    num_count: i64,
 }
 
 // Should only be used once
@@ -212,7 +212,7 @@ pub async fn delete_file_by_id(id: &i64, conn: &Pool<MySql>) -> anyhow::Result<(
     Ok(())
 }
 
-pub async fn get_number_of_users(conn: &Pool<MySql>) -> anyhow::Result<u16> {
+pub async fn get_number_of_users(conn: &Pool<MySql>) -> anyhow::Result<i64> {
 	let mut rows = sqlx::query_as::<_, UserCount>("select COUNT(*) num_count from `users`")
         .fetch(conn);
 
