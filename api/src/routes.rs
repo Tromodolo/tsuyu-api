@@ -51,7 +51,7 @@ fn files(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = war
 }
 fn upload_file(db: Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
 	let cnf: config::ServerConfig = config::get_server_config().unwrap();
-	
+
     warp::path("upload")
         .and(warp::post())
         .and(warp::multipart::form().max_length(cnf.max_file_size_bytes))
@@ -126,5 +126,5 @@ fn with_db(db: Pool<MySql>) -> impl Filter<Extract = (Pool<MySql>,), Error = std
 }
 
 fn with_user(db: Pool<MySql>) -> impl Filter<Extract = (account::User,), Error = warp::Rejection> + Clone {
-	warp::any().and(warp::header::<String>("authorization").and(with_db(db.clone())).and_then(account::get_user))
+	warp::any().and(warp::header::<String>("Authorization").and(with_db(db.clone())).and_then(account::get_user))
 }

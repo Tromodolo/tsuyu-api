@@ -32,9 +32,16 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
     db::create_tables(&db).await;
 
     let routes = routes::get_routes(&db);
+	let cors = warp::cors()
+	.allow_any_origin()
+	.allow_headers(vec![
+		"Content-Type",
+		"Authorization"
+	])
+	.allow_methods(vec!["POST", "GET", "DELETE", "PUT"]);
 
-    /* Router Setup */
-    let router = routes.recover(handle_error);
+	/* Router Setup */
+    let router = routes.recover(handle_error).with(cors);
     println!("Server started at localhost:{}", &cnf.port);
 	warp::serve(router).run(([0, 0, 0, 0], cnf.port)).await;
 
@@ -56,7 +63,7 @@ async fn handle_error(err: Rejection) -> Result<impl Reply, Infallible> {
             (StatusCode::BAD_REQUEST, String::from("There is a problem with uploading requested data. Please try again"))
         }
         else if err.find::<rejections::LoginTaken>().is_some() {
-            (StatusCode::FORBIDDEN, String::from("Requested login has already been taken by another user"))
+            (StatusCode::FORBIDDEN, String::from("Username has already been taken"))
         }
         else if err.find::<rejections::Banned>().is_some() {
             (StatusCode::FORBIDDEN, String::from("Your IP has been banned from uploading files"))
