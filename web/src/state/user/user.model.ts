@@ -6,6 +6,7 @@ export interface User {
 	api_key?: string;
 	last_update: Date;
 	created_at: Date;
+	message?: string;
 }
 
 export interface UserRegister {

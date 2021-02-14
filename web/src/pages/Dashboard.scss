@@ -82,6 +82,59 @@
 	color: #DAE1E7;
 }
 
+.dashboard-account {
+	width: 100%;
+	max-width: 500px;
+}
+
+.token-input {
+	display: flex;
+
+	justify-content: space-between;
+	align-items: center;
+}
+
+.token-copy {
+	height: 35px;
+	margin-left: 10px;
+	margin-top: 30px;
+}
+
+.password-update {
+	margin-top: 80px;
+}
+
+.password-update-error {
+	font-weight: bold;
+	font-size: 16px;
+
+	color: #e34444;
+	margin-top: 5px;
+	margin-bottom: 5px;
+
+	width: 100%;
+	text-align: center;
+}
+
+.password-update-success {
+	font-weight: bold;
+	font-size: 16px;
+
+	color: #44E384;
+	margin-top: 5px;
+	margin-bottom: 5px;
+
+	width: 100%;
+	text-align: center;
+}
+
+.loading {
+	min-height: 400px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
 .file-table {
 	flex: 1 1 auto;
 	width: 100%;

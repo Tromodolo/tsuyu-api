@@ -1,5 +1,5 @@
 import { UserStore, userStore } from "./user.store";
-import { User, UserLogin, UserRegister } from "./user.model";
+import { PasswordUpdate, User, UserLogin, UserRegister } from "./user.model";
 import { SendRequest } from "../Request";
 
 export class UserService {
@@ -8,6 +8,7 @@ export class UserService {
 	async login(data: UserLogin) {
 		this.store.setLoading(true);
 		this.store.setError("");
+		this.store.update({message: undefined});
 
 		try{
 			const res = await SendRequest<User>("login", "POST", data);
@@ -50,7 +51,30 @@ export class UserService {
 			is_admin: undefined,
 			last_update: undefined,
 			created_at: undefined,
+			message: undefined,
 		});
+	}
+
+	async changePassword(data: PasswordUpdate) {
+		this.store.setLoading(true);
+		this.store.setError("");
+		this.store.update({message: undefined});
+		const state = this.store.getValue();
+
+		try{
+			const res = await SendRequest<PasswordUpdate>("change-password", "POST", data, [state.id.toString()]);
+			if (res.status === 200){
+				this.store.update({
+					message: "Successfully updated password",
+				});
+			} else {
+				this.store.setError(res.error);
+			}
+		} catch (e) {
+			this.store.setError(e.message);
+		}
+
+		this.store.setLoading(false);
 	}
 }
 
