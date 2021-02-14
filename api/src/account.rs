@@ -1,7 +1,6 @@
 use warp::{Rejection, Reply};
 use warp::multipart::{FormData, Part};
 use futures::TryStreamExt;
-use std::env;
 use bytes::BufMut;
 use serde::{Serialize, Deserialize};
 use std::net::{SocketAddr, IpAddr};
@@ -21,7 +20,8 @@ pub struct File {
     pub original_name: String,
     pub name: String,
     pub filetype: String,
-    pub file_hash: String,
+	pub file_hash: String,
+	pub file_size: u32,
     pub uploaded_by: i64,
     pub uploaded_by_ip: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -60,9 +60,9 @@ pub struct PasswordUpdate {
     pub new_password: String,
 }
 
-pub async fn register_user(data: UserRegister, db: Pool<MySql>) -> Result<impl warp::Reply, warp::reject::Rejection> {
+pub async fn register_user(data: UserRegister, conn: Pool<MySql>) -> Result<impl warp::Reply, warp::reject::Rejection> {
     let email = &data.email.unwrap_or_else(|| String::from(""));
-    let check_taken = db::check_if_username_or_email_used(&data.username, email, &db).await;
+    let check_taken = db::check_if_username_or_email_used(&data.username, email, &conn).await;
     match check_taken {
         Ok(taken) => {
             if taken {
@@ -75,10 +75,11 @@ pub async fn register_user(data: UserRegister, db: Pool<MySql>) -> Result<impl w
         }
     }
 
-    let token_gen = rand::thread_rng()
+	let token_gen: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
-        .take(32)
-        .collect::<String>();
+        .take(30)
+        .map(char::from)
+        .collect();
 
     let hash_password = hash(&data.password, DEFAULT_COST);
     let hashed: String;
@@ -88,33 +89,37 @@ pub async fn register_user(data: UserRegister, db: Pool<MySql>) -> Result<impl w
             eprint!("Failed hashing password: {}", err);
             return Err(warp::reject::custom(InternalError));
         }
-    }
+	}
+	
+	let num_users = db::get_number_of_users(&conn).await.unwrap();
+	let is_admin = if num_users == 0 { true } else { false };
 
-    let create_user = db::create_user(&User {
+	let user = User {
         id: 0,
         username: String::from(&data.username),
         email: Some(String::from(email)),
         hashed_password: hashed,
         api_key: Some(token_gen),
-        is_admin: false,
+        is_admin,
         last_update: chrono::Utc::now(),
         created_at: chrono::Utc::now(),
-    }, &db).await;
+    };
+    let create_user = db::create_user(&user, &conn).await;
 
     if let Err(err) = create_user {
         eprint!("Failed inserting user into database: {}", err);
         return Err(warp::reject::custom(InternalError));
     }
 
-    Ok("Successfully created user")
+    Ok(warp::reply::json(&user))
 }
 
-pub async fn update_user_password(user_id: i64, update_data: PasswordUpdate, db: Pool<MySql>, requester: User) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn update_user_password(user_id: i64, update_data: PasswordUpdate, conn: Pool<MySql>, requester: User) -> Result<impl warp::Reply, warp::Rejection> {
     if user_id != requester.id && !requester.is_admin {
         return Err(warp::reject::custom(Unauthorized));
     }
 
-    let get_user = db::get_user_by_id(&user_id, &db).await;
+    let get_user = db::get_user_by_id(&user_id, &conn).await;
     let user: User;
     match get_user {
         Some(usr) => user = usr,
@@ -145,7 +150,7 @@ pub async fn update_user_password(user_id: i64, update_data: PasswordUpdate, db:
         }
     }
 
-    let update = db::update_password(&user_id, &hashed, &db).await;
+    let update = db::update_password(&user_id, &hashed, &conn).await;
     if let Err(err) = update {
         eprint!("Failed updating user: {}", err);
         return Err(warp::reject::custom(InternalError));
@@ -154,17 +159,18 @@ pub async fn update_user_password(user_id: i64, update_data: PasswordUpdate, db:
     Ok("Successfully updated user")
 }
 
-pub async fn reset_user_token(user_id: i64, db: Pool<MySql>, requester: User) -> Result<impl warp::Reply, warp::Rejection> {
-    let token_gen = rand::thread_rng()
+pub async fn reset_user_token(user_id: i64, conn: Pool<MySql>, requester: User) -> Result<impl warp::Reply, warp::Rejection> {
+    let token_gen: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
-        .take(32)
-        .collect::<String>();
+        .take(30)
+        .map(char::from)
+        .collect();
 
     if !(user_id == requester.id || requester.is_admin){
         return Err(warp::reject::custom(Unauthorized));
     }
 
-    let update = db::update_user_token(&user_id, &token_gen, &db).await;
+    let update = db::update_user_token(&user_id, &token_gen, &conn).await;
     if let Err(err) = update {
         eprint!("Failed resetting user's token: {}", err);
         return Err(warp::reject::custom(InternalError));
@@ -173,8 +179,8 @@ pub async fn reset_user_token(user_id: i64, db: Pool<MySql>, requester: User) ->
     Ok("Successfully reset token")
 }
 
-pub async fn login_user(data: UserLogin, db: Pool<MySql>) -> Result<impl warp::Reply, warp::reject::Rejection> {
-    let get_user = db::check_user_login(&data, &db).await;
+pub async fn login_user(data: UserLogin, conn: Pool<MySql>) -> Result<impl warp::Reply, warp::reject::Rejection> {
+    let get_user = db::check_user_login(&data, &conn).await;
     if let Some(user) = get_user {
         if let Ok(correct) = verify(&data.password, &user.hashed_password) {
             if correct {
@@ -186,20 +192,24 @@ pub async fn login_user(data: UserLogin, db: Pool<MySql>) -> Result<impl warp::R
     Err(warp::reject::custom(Unauthorized))
 }
 
-pub async fn get_user(token: String, db: Pool<MySql>) -> Result<User, warp::reject::Rejection> {
-    let user = db::get_user_by_token(&token, &db).await;
+pub async fn get_user(token: String, conn: Pool<MySql>) -> Result<User, warp::reject::Rejection> {
+    let user = db::get_user_by_token(&token, &conn).await;
     if let Some(data) = user {
         return Ok(data);
     }
     Err(warp::reject::custom(Unauthorized))
 }
 
+pub async fn get_file_count(conn: Pool<MySql>, user: User) -> Result<impl warp::Reply, warp::reject::Rejection> {
+	let count = db::get_number_of_files_for_user(&conn, &user.id).await.unwrap();
+	return Ok(warp::reply::json(&count));
+}
 
-pub async fn delete_file(id: i64, db: Pool<MySql>, user: User) -> Result<impl Reply, Rejection> {
+pub async fn delete_file(id: i64, conn: Pool<MySql>, user: User) -> Result<impl Reply, Rejection> {
     let mut can_delete = false;
 
     let file: File;
-    match db::get_file_by_id(&id, &db).await {
+    match db::get_file_by_id(&id, &conn).await {
         Some(f) => {
             file = f;
         },
@@ -220,7 +230,7 @@ pub async fn delete_file(id: i64, db: Pool<MySql>, user: User) -> Result<impl Re
             },
             _ => (),
         }
-        return match db::delete_file_by_id(&id, &db).await {
+        return match db::delete_file_by_id(&id, &conn).await {
             Ok(_) => Ok("Successfully deleted file"),
             Err(e) => {
                 eprint!("Failed deleting file: {}", e);
@@ -233,8 +243,8 @@ pub async fn delete_file(id: i64, db: Pool<MySql>, user: User) -> Result<impl Re
     }
 }
 
-pub async fn get_files(page: i64, db: Pool<MySql>, user: User) -> Result<impl Reply, warp::reject::Rejection> {
-    return match db::get_files_for_user(&page, &user, &db).await {
+pub async fn get_files(page: i64, conn: Pool<MySql>, user: User) -> Result<impl Reply, warp::reject::Rejection> {
+    return match db::get_files_for_user(&page, &user, &conn).await {
         Ok(files) => Ok(warp::reply::json(&files)),
         Err(err) => {
             eprint!("Failed fetching file list: {}", err);
@@ -243,7 +253,7 @@ pub async fn get_files(page: i64, db: Pool<MySql>, user: User) -> Result<impl Re
     };
 }
 
-pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip: Option<SocketAddr>) -> Result<impl Reply, Rejection> {
+pub async fn upload_file(form: FormData, conn: Pool<MySql>, user: User, socket_ip: Option<SocketAddr>) -> Result<impl Reply, Rejection> {
     let parts: Vec<Part> = form.try_collect().await.map_err(|e| {
         eprintln!("Problem with formdata: {}", e);
         warp::reject::custom(BadRequest)
@@ -278,7 +288,7 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
                 }
             }
 
-            let is_banned = db::is_ip_banned(&ip_string, &db)
+            let is_banned = db::is_ip_banned(&ip_string, &conn)
                 .await
                 .map_err(|e| {
                     eprintln!("Problem when fetching ban status: {}", e);
@@ -289,18 +299,22 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
                 return Err(warp::reject::custom(Banned));
             }
 
+			let cnf: crate::config::ServerConfig = crate::config::get_server_config().unwrap();
+			let rand: String = rand::thread_rng()
+				.sample_iter(&Alphanumeric)
+				.take(cnf.file_name_length.into())
+				.map(char::from)
+				.collect();
 
-            let rand = rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(12)
-                .collect::<String>();
             let file_extension = get_file_ending(&original_file_name);
-            let file_name = format!("{}{}", rand, &file_extension);
+			let file_name = format!("{}{}", rand, &file_extension);
+			let mut file_size: u32 = 0;
 
             let value = p
                 .stream()
                 .try_fold(Vec::new(), |mut vec, data| {
-                    vec.put(data);
+					vec.put(data);
+					file_size = (vec.iter().len() / 1000) as u32;
                     async move { Ok(vec) }
                 })
                 .await
@@ -313,9 +327,9 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
             value.hash(&mut hasher);
             let file_hash = format!("{:X}", hasher.finish()).to_lowercase();
 
-            let existing_file = db::get_existing_file_by_hash(&file_hash, &user.id, &db).await;
+            let existing_file = db::get_existing_file_by_hash(&file_hash, &user.id, &conn).await;
             if let Some(old_file) = existing_file { // If this errored out, it doesn't really do much, so just ignore it
-                return Ok(format!("{}/{}", &env::var("BASE_URL").expect("Base URL is not set"), &old_file.name));
+                return Ok(format!("{}/{}", &cnf.base_url, &old_file.name));
             }
 
             let path = format!("./files/{}", &file_name);
@@ -331,13 +345,14 @@ pub async fn upload_file(form: FormData, db: Pool<MySql>, user: User, socket_ip:
                 filetype: content_type,
                 uploaded_by: user.id,
                 uploaded_by_ip: ip_string,
-                file_hash,
+				file_hash,
+				file_size, // In kb
                 created_at: chrono::Utc::now(),
             };
 
-            let res = db::write_file(&file, &db).await;
+            let res = db::write_file(&file, &conn).await;
             return match res {
-                Ok(_) => Ok(format!("{}/{}", &env::var("BASE_URL").expect("Base URL is not set"), &file.name)),
+                Ok(_) => Ok(format!("{}/{}", &cnf.base_url, &file.name)),
                 Err(err) => {
                     eprint!("Failed writing file to database: {}", err);
                     // If it failed to write to db, delete file from disk

@@ -8,6 +8,7 @@ mod account;
 mod rejections;
 mod db;
 mod routes;
+mod config;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn error::Error>> {
@@ -16,17 +17,33 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
             ErrorKind::AlreadyExists => (),
             _ => panic!("Failed to create files folder"),
         }
-    }
-
-    let db: Pool<MySql> = db::initialize_db_pool().await.expect("Failed to initialize database connection");
+	}
+	if let Err(e) = fs::create_dir("./public") {
+        match e.kind() {
+            ErrorKind::AlreadyExists => (),
+            _ => panic!("Failed to create public folder"),
+        }
+	}
+	let cnf: config::ServerConfig = config::get_server_config().unwrap();
+	if cnf.database_url.len() == 0 {
+		panic!("Please fill out the server config.");
+	}
+    let db: Pool<MySql> = db::initialize_db_pool(&cnf.database_url).await.expect("Failed to initialize database connection");
     db::create_tables(&db).await;
 
     let routes = routes::get_routes(&db);
+	let cors = warp::cors()
+	.allow_any_origin()
+	.allow_headers(vec![
+		"Content-Type",
+		"Authorization"
+	])
+	.allow_methods(vec!["POST", "GET", "DELETE", "PUT"]);
 
-    /* Router Setup */
-    let router = routes.recover(handle_error);
-    println!("Server started at localhost:8080");
-    warp::serve(router).run(([0, 0, 0, 0], 8080)).await;
+	/* Router Setup */
+    let router = routes.recover(handle_error).with(cors);
+    println!("Server started at localhost:{}", &cnf.port);
+	warp::serve(router).run(([0, 0, 0, 0], cnf.port)).await;
 
     Ok(())
 }
@@ -46,7 +63,7 @@ async fn handle_error(err: Rejection) -> Result<impl Reply, Infallible> {
             (StatusCode::BAD_REQUEST, String::from("There is a problem with uploading requested data. Please try again"))
         }
         else if err.find::<rejections::LoginTaken>().is_some() {
-            (StatusCode::FORBIDDEN, String::from("Requested login has already been taken by another user"))
+            (StatusCode::FORBIDDEN, String::from("Username has already been taken"))
         }
         else if err.find::<rejections::Banned>().is_some() {
             (StatusCode::FORBIDDEN, String::from("Your IP has been banned from uploading files"))

@@ -9,13 +9,16 @@ opt-level=3
 codegen-units=1
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
-warp = "0.3"
+# this will have to wait until sqlx 0.5 releases with tokio 1.0 support
+# tokio = { version = "1", features = ["full"] }
+tokio = { version = "0.2.21", features = ["macros", "rt-threaded", "fs"] }
+warp = "0.2.3"
 futures = { version = "0.3.12", default-features = false }
-bytes = "1.0.1"
+bytes = "0.5.6"
 chrono = { version = "0.4", features = ["serde"] }
 sqlx = { version = "0.4.2", default-features = false, features = [ "runtime-tokio-native-tls", "macros", "mysql", "chrono"] }
 serde = { version = "1.0", features = ["derive"] }
 bcrypt = "0.9"
 anyhow = "1.0"
 rand = "0.8.3"
+confy = "0.4"

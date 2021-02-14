@@ -1,0 +1,36 @@
+.text-input {
+	border: none;
+	border-radius: 10px;
+	outline: none;
+	width: 100%;
+
+	padding: 7px;
+	margin-top: 5px;
+	margin-bottom: 5px;
+
+	box-sizing: border-box;
+
+	background: #5B5C5E;
+	color: #DAE1E7;
+
+	font-family: "nunito";
+
+	font-weight: 600;
+	font-size: 18px;
+	line-height: 25px;
+	letter-spacing: 0.015em;
+}
+
+.input-label {
+	display: inline-block;
+
+	font-family: "nunito";
+
+	font-weight: 600;
+	font-size: 14px;
+	line-height: 25px;
+	letter-spacing: 0.015em;
+	color: #DAE1E7;
+
+	margin-bottom: 5px;
+}
