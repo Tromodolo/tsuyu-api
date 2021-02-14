@@ -6,7 +6,7 @@
 **/*.rs.bk
 
 /.idea/
-files/
+api/files/
 bin/
 target/
 node_modules/
