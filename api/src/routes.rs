@@ -16,10 +16,10 @@ pub fn get_routes (db: &Pool<MySql>) -> impl Filter<Extract = impl warp::Reply, 
 
 // File serving
 fn serve_web() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::fs::dir("./public")
+    warp::fs::dir("public")
 }
 fn get_files() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::fs::dir("./files")
+    warp::fs::dir("files")
 }
 
 // TODO: Connect this to a config file instead of hardcoding it

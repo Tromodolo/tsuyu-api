@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosResponse } from "axios";
 import { userQuery } from "./user";
 
-export const API_URL = process.env.API_URL ?? "http://localhost:7000";
+export const API_URL = process.env.REACT_APP_API_URL;
 let ApiKey: string | undefined = "";
 userQuery.api_key.subscribe((api) => {
 	ApiKey = api;
