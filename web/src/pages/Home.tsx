@@ -1,11 +1,26 @@
 import React from "react";
-import Navbar from "../components/Navbar";
+import Button from "../components/Button";
+import UploadButton from "../components/UploadButton";
+import { fileService, useFileState } from "../state/files";
+import { useAuthenticationState } from "../state/user";
 import "./Home.scss";
 
 
 
 const Home = () => {
-	const isLoggedIn = true;
+	const { isLoggedIn } = useAuthenticationState();
+	const { recentlyUploaded, uploadProgress } = useFileState();
+
+	const copyToClipboard = (x: string) => {
+		navigator.clipboard.writeText(x);
+	}
+
+	const onUpload = (file?: File) => {
+		if (!file) {
+			return;
+		}
+		fileService.uploadFile(file);
+	};
 
 	const upload = () => {
 		if (!isLoggedIn) {
@@ -14,10 +29,16 @@ const Home = () => {
 
 		return (
 			<>
-				{/* <input type="file" id="upload-button" name="files" style={{display: "none"}} />
-				<label htmlFor="upload-button" id="upload-label">
-					Click or drag file to upload
-				</label> */}
+				<UploadButton onUpload={onUpload} percentage={uploadProgress} />
+				{(recentlyUploaded?.length > 0) && <h4>Uploaded files (Last 3)</h4>}
+				{[...recentlyUploaded].reverse().slice(0, 3).map((x) => {
+					return (
+						<div key={x} className="recent-file">
+							<Button text={"Copy URL"} onClick={() => copyToClipboard(x)} small={true} />
+							<span>{x.split("/")[1]}</span>
+						</div>
+					);
+				})}
 			</>
 		)
 	};

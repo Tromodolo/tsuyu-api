@@ -45,31 +45,22 @@
 }
 
 .interactions {
+	font-weight: bold;
+	font-size: 20px;
+	color: #DAE1E7;
+	text-align: center;
 	filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
 }
 
-#upload-label {
-	display: inline-block;
+.recent-file {
+	margin-top: 14px;
+	
+	display: flex;
 
-	width: 320px;
-	max-width: 80vw;
-	height: 50px;
-	line-height: 50px;
-	border-radius: 10px;
-	background: #44E384;
+	flex-direction: row;
+	align-items: center;
 
-	font-weight: bold;
-	font-size: 20px;
-	letter-spacing: 0.015em;
-	text-align: center;
-
-	color: #434343;
-
-	user-select: none;
-	-moz-user-select: none;
-
-	&:hover {
-		cursor: pointer;
-		background: darken(#44E384, 10);
+	span {
+		margin-left: 16px;
 	}
 }

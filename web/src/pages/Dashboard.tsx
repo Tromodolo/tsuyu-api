@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { NavLinkProps, useHistory } from "react-router-dom";
-import Navbar from "../components/Navbar";
+import { useHistory } from "react-router-dom";
 import { FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 
 import "./Dashboard.scss"
