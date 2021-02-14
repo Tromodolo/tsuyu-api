@@ -35,7 +35,7 @@ const Home = () => {
 					return (
 						<div key={x} className="recent-file">
 							<Button text={"Copy URL"} onClick={() => copyToClipboard(x)} small={true} />
-							<span>{x.split("/")[1]}</span>
+							<span>{x.split(`${window.location.host}/`)[1]}</span>
 						</div>
 					);
 				})}
