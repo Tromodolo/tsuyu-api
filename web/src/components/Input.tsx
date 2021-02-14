@@ -7,6 +7,7 @@ interface InputProps {
 	label?: string;
 	type?: "text" | "password" | "number" | "email",
 	onChange?: (val: string) => void,
+	disabled?: boolean;
 }
 
 const Input = (props: InputProps) => {
@@ -20,6 +21,7 @@ const Input = (props: InputProps) => {
 				type={props.type}
 				placeholder={props.placeholder}
 				onChange={(x) => props.onChange ? props.onChange(x.target.value) : null} 
+				disabled={props.disabled}
 			/>
 		</div>
 	);
