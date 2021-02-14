@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuthenticationState } from "../user";
 import { File } from "./file.model";
 import { fileQuery } from "./file.query";
 import { fileService } from "./file.service";
@@ -12,6 +13,7 @@ export const useFileState = (): {
 	currentPage: number,
 	totalPages: number,
 } => {
+	const { isLoggedIn } = useAuthenticationState();
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [files, setFiles] = useState<File[]>([]);
@@ -21,8 +23,10 @@ export const useFileState = (): {
 	const [totalPages, setTotalPages] = useState<number>(1);
 
 	useEffect(() => {
-		fileService.getFileCount();
-		fileService.getFiles();
+		if (isLoggedIn){
+			fileService.getFileCount();
+			fileService.getFiles();
+		}
 
 		const subscriptions: any[] = [
 			fileQuery.isLoading$.subscribe((x) => setIsLoading(x)),
@@ -37,7 +41,7 @@ export const useFileState = (): {
 		return () => {
 			subscriptions.map((it) => it.unsubscribe());
 		};
-	}, []);
+	}, [isLoggedIn]);
 
 	return {
 		error,
