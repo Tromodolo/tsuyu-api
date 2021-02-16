@@ -52,6 +52,45 @@
 	filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
 }
 
+.interaction-buttons {
+	margin-top: 20px;
+	width: 100%;
+
+	display: flex;
+	flex-direction: row;
+	justify-content: space-evenly;
+	align-items: center;
+
+	filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+
+	.button-github {
+		background: white;
+		border-radius: 15px;
+		padding: 12px;
+
+		&:hover {
+			position: relative;
+			top: -2px;
+		}
+	}
+	.button-sharex {
+		background: #fb4949;
+		color: white;
+		border-radius: 15px;
+		padding: 12px;
+
+		&:hover {
+			position: relative;
+			top: -2px;
+		}
+	}
+
+	&.wide {
+		width: 500px;
+		max-width: 90vw;
+	}
+}
+
 .recent-file {
 	margin-top: 14px;
 	

@@ -3,13 +3,36 @@ import Button from "../components/Button";
 import UploadButton from "../components/UploadButton";
 import { fileService, useFileState } from "../state/files";
 import { useAuthenticationState } from "../state/user";
+import download from "downloadjs";
+
 import "./Home.scss";
 
-
+const shareXTemplate = {
+	"Version": "1.0",
+	"Name": "tsuyu",
+	"DestinationType": "ImageUploader, TextUploader, FileUploader",
+	"RequestMethod": "POST",
+	"RequestURL": `${process.env.REACT_APP_API_URL}/upload`,
+	"Headers": {
+	  "Authorization": "REPLACE_THIS",
+	},
+	"Body": "MultipartFormData",
+	"FileFormName": "file",
+	"URL": "$response$",
+}
 
 const Home = () => {
-	const { isLoggedIn } = useAuthenticationState();
+	const { isLoggedIn, user } = useAuthenticationState();
 	const { recentlyUploaded, uploadProgress } = useFileState();
+
+	const downloadShareX = () => {
+		const template = {...shareXTemplate};
+		if (user?.api_key){
+			template.Headers.Authorization = user?.api_key ?? "";
+		}
+		const blob = new Blob([JSON.stringify(template, null, 2)], {type : 'application/json'});
+		download(blob, "tsuyu.sxcu", "application/json");
+	}
 
 	const copyToClipboard = (x: string) => {
 		navigator.clipboard.writeText(x);
@@ -24,7 +47,14 @@ const Home = () => {
 
 	const upload = () => {
 		if (!isLoggedIn) {
-			return null;
+			return (
+				<>
+					<div className="interaction-buttons wide">
+						<Button text="Github" className="button-github" onClick={() => window.location.href = "https://github.com/tromodolo/tsuyu"} />
+						<Button text="ShareX config" className="button-sharex" onClick={() => downloadShareX()}/>
+					</div>
+				</>
+			);
 		}
 
 		return (
@@ -39,6 +69,10 @@ const Home = () => {
 						</div>
 					);
 				})}
+				<div className="interaction-buttons">
+					<Button text="Github" className="button-github" onClick={() => window.location.href = "https://github.com/tromodolo/tsuyu"} />
+					<Button text="ShareX config" className="button-sharex" onClick={() => downloadShareX()}/>
+				</div>
 			</>
 		)
 	};
