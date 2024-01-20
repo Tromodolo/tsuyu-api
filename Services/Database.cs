@@ -203,7 +203,7 @@ where
 ");
 
         if (!string.IsNullOrEmpty(cursor)) {
-            queryBuilder.Append("    and `id` > @cursor");
+            queryBuilder.Append("    and `id` < @cursor");
         }
         queryBuilder.Append(@"
  order by id desc 
