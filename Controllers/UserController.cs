@@ -100,15 +100,19 @@ public class UserController: BaseController {
 	[Authorize]
 	public async Task<IActionResult> ChangePasswordAsync([FromBody] PasswordUpdate passwordUpdate) {
 		var response = new Response<string>();
+		var authenticatedUser = await GetAuthenticatedUserAsync();
 
-		if (!passwordUpdate.Password.Equals(passwordUpdate.NewPassword)) {
+		if (!BCrypt.Net.BCrypt.Verify(passwordUpdate.Password, authenticatedUser.HashedPassword)) {
 			response.Error = true;
-			response.ErrorMessage = "Passwords do not match.";
+			response.ErrorMessage = "Failed to verify existing password.";
 			return BadRequest(response);
 		}
 
-		var authenticatedUser = await GetAuthenticatedUserAsync();
-		var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(passwordUpdate.Password, 12);
+		// Hash iterations are 2 ^ workFactor, meaning 12 would mean
+		// 4096 iterations of the hash algorithm.
+		// 12 is a good middle ground that isn't too slow.
+		var hashWorkFactor = 12;
+		var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(passwordUpdate.NewPassword, hashWorkFactor);
 		await Db.SetNewPasswordForUserIdAsync(authenticatedUser.Id, newPasswordHash);
 
 		response.Data = "Successfully changed password.";
