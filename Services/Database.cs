@@ -205,7 +205,9 @@ where
         if (!string.IsNullOrEmpty(cursor)) {
             queryBuilder.Append("    and `id` > @cursor");
         }
-        queryBuilder.Append(" limit @pageSize");
+        queryBuilder.Append(@"
+ order by id desc 
+ limit @pageSize");
         var query = queryBuilder.ToString();
 
         var result = await Connection.QueryAsync<UploadedFile>(
