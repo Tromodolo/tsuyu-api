@@ -16,11 +16,19 @@ public class SettingsController : BaseController {
 	/// <returns>Response object with the current settings</returns>
 	[HttpGet]
 	[Route("settings")]
-	public IActionResult GetSettingsAsync() {
+	public async Task<IActionResult> GetSettingsAsync() {
+		var registerEnabled = Config.RegisterEnabled;
+
+		// If no one has registered yet, allow registration of a single user
+		var userCount = await Db.GetUserCountAsync();
+		if (userCount == 0) {
+			registerEnabled = true;
+		}
+
 		return Ok(new Response<CurrentSettings> {
 			Data = new CurrentSettings {
 				MaxFileSizeBytes = Config.MaxFileSizeBytes,
-				RegisterEnabled = Config.RegisterEnabled
+				RegisterEnabled = registerEnabled
 			}
 		});
 	}

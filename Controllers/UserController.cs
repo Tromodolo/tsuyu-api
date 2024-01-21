@@ -44,8 +44,15 @@ public class UserController: BaseController {
 	[Route("register")]
 	public async Task<IActionResult> RegisterAsync([FromBody] UserRegister userRegister) {
 		var response = new Response<User>();
+		var registerEnabled = Config.RegisterEnabled;
 
-		if (!Config.RegisterEnabled) {
+		// If no one has registered yet, allow registration of a single user
+		var userCount = await Db.GetUserCountAsync();
+		if (userCount == 0) {
+			registerEnabled = true;
+		}
+
+		if (!registerEnabled) {
 			response.Error = true;
 			response.ErrorMessage = "Registering is disabled on this instance.";
 			return Unauthorized(response);

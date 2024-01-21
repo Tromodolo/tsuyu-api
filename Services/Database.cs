@@ -20,6 +20,12 @@ public class Database {
         // TODO: Add FluentMigrator
     }
 
+    public async Task<int> GetUserCountAsync() {
+        var count = await Connection.ExecuteScalarAsync<int>(@"
+select count(*) from `users`");
+        return count;
+    }
+
     /// <summary>
     /// Looks up a User by username and returns it if found.
     /// </summary>
