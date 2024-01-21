@@ -132,6 +132,8 @@ public class UserController: BaseController {
 		// where you don't want to update your token all the time.
 		// TODO: Possibly separate upload token from auth token?
 		var tokenHandler = new JwtSecurityTokenHandler();
+		var key = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(Config.JwtKey));
+		var signingCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
 		var token = tokenHandler.CreateToken(new SecurityTokenDescriptor {
 			Subject = new ClaimsIdentity(new[] {
 				new Claim("Id", Guid.NewGuid().ToString()),
@@ -141,9 +143,7 @@ public class UserController: BaseController {
 			Expires = DateTime.UtcNow.AddYears(100),
 			Issuer = Config.JwtIssuer,
 			Audience = Config.JwtAudience,
-			SigningCredentials = new SigningCredentials(
-				new SymmetricSecurityKey(Encoding.ASCII.GetBytes(Config.JwtKey)),
-				SecurityAlgorithms.HmacSha512Signature)
+			SigningCredentials = signingCredentials
 		});
 		return tokenHandler.WriteToken(token);
 	}

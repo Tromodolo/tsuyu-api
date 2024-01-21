@@ -5,10 +5,24 @@ global using tsuyu.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
+using System.Net;
 using System.Reflection;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Defaults to 7000 but possible to change
+var port = 7000;
+var envPort = Environment.GetEnvironmentVariable("Port");
+
+if (!string.IsNullOrEmpty(envPort) &&
+    int.TryParse(envPort, out var parsedPort)) {
+	port = parsedPort;
+}
+
+builder.WebHost.ConfigureKestrel(opt => {
+	opt.Listen(IPAddress.Any, port);
+});
 
 // Authentication
 var jwtIssuer = Environment.GetEnvironmentVariable("JwtIssuer");
@@ -28,10 +42,11 @@ builder.Services.AddAuthentication(opt => {
 	opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 	opt.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
 }).AddJwtBearer(opt => {
+	var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 	opt.TokenValidationParameters = new TokenValidationParameters {
 		ValidIssuer = jwtIssuer,
 		ValidAudience = jwtAudience,
-		IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+		IssuerSigningKey = key,
 		ValidateIssuer = true,
 		ValidateAudience = true,
 		ValidateLifetime = false,
