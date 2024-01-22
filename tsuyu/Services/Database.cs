@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using FluentMigrator.Runner;
 using MySql.Data.MySqlClient;
 using System.Text;
 
@@ -8,16 +9,12 @@ namespace tsuyu.Services;
 /// Handles connection to database (only MySql/MariaDB supported)
 /// </summary>
 public class Database : IDatabase {
-    readonly ConfigurationService ConfigurationService;
+    readonly IConfigurationService ConfigurationService;
     readonly MySqlConnection Connection;
 
-    public Database(ConfigurationService configurationService) {
+    public Database(IConfigurationService configurationService) {
         ConfigurationService = configurationService;
         Connection = new MySqlConnection(ConfigurationService.DbConnectionString);
-    }
-
-    void CreateTables() {
-        // TODO: Add FluentMigrator
     }
 
     public async Task<int> GetUserCountAsync() {
@@ -40,7 +37,6 @@ select
     email Email,
     is_admin IsAdmin,
     api_key ApiToken,
-    last_update LastUpdate,
     created_at CreatedAt
 from `users` 
 where `username` = @username
@@ -78,7 +74,6 @@ select
     email Email,
     is_admin IsAdmin,
     api_key ApiKey,
-    last_update LastUpdate,
     created_at CreatedAt
 from `users` 
 where `api_key` = @apiToken
@@ -131,26 +126,20 @@ insert into `users` (
     hashed_password,
     email,
     is_admin,
-    api_key,
-    last_update,
-    created_at
+    api_key
 ) values (
     @username,
     @hashedPassword,
     @email,
     @isAdmin,
-    @apiToken,
-    @lastUpdate,
-    @createdAt
+    @apiToken
 )",
             new {
                 username = user.Username,
                 hashedPassword = user.HashedPassword,
                 email = user.Email,
                 isAdmin = user.IsAdmin,
-                apiToken = user.ApiToken,
-                lastUpdate = user.LastUpdate,
-                createdAt = user.CreatedAt
+                apiToken = user.ApiToken
             });
     }
 
@@ -167,8 +156,7 @@ insert into `files` (
     file_hash, 
     file_size, 
     uploaded_by, 
-    uploaded_by_ip, 
-    created_at) 
+    uploaded_by_ip) 
 values (
     @name, 
     @origName, 
@@ -176,8 +164,7 @@ values (
     @hash, 
     @size, 
     @uploadedBy, 
-    @uploadedIp, 
-    @createdAt)",
+    @uploadedIp)",
             new {
                 name = uploadedFileMetadata.Name,
                 origName = uploadedFileMetadata.OriginalName,
@@ -185,8 +172,7 @@ values (
                 hash = uploadedFileMetadata.FileHash,
                 size = uploadedFileMetadata.FileSizeInKB,
                 uploadedBy = uploadedFileMetadata.UploadedBy,
-                uploadedIp = uploadedFileMetadata.UploadedByIp,
-                createdAt = uploadedFileMetadata.CreatedAt
+                uploadedIp = uploadedFileMetadata.UploadedByIp
             });
     }
 

@@ -8,6 +8,10 @@ using Microsoft.IdentityModel.Tokens;
 using System.Net;
 using System.Reflection;
 using System.Text;
+using FluentMigrator.Runner;
+using FluentMigrator.Runner.Initialization;
+using tsuyu.Migrations;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +40,15 @@ if (string.IsNullOrEmpty(jwtIssuer) || string.IsNullOrEmpty(jwtAudience)
 	return;
 }
 
+var databaseConnectionString = Environment.GetEnvironmentVariable("DbConnectionString");
+builder.Services
+	.AddFluentMigratorCore()
+	.ConfigureRunner(runner => {
+		runner.AddMySql8()
+			.WithGlobalConnectionString(databaseConnectionString)
+			.ScanIn(typeof(CreateTables).Assembly).For.Migrations();
+	});
+
 builder.Services.AddAuthorization();
 builder.Services.AddAuthentication(opt => {
 	opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -54,9 +67,9 @@ builder.Services.AddAuthentication(opt => {
 	};
 });
 
-builder.Services.AddSingleton<ConfigurationService>();
-builder.Services.AddSingleton<Database>(); // Depends on ConfigurationService
-builder.Services.AddSingleton<FileService>(); // Depends on Database
+builder.Services.AddSingleton<IConfigurationService, ConfigurationService>();
+builder.Services.AddSingleton<IDatabase, Database>(); // Depends on IConfigurationService
+builder.Services.AddSingleton<IFileService, FileService>();
 
 builder.Services.AddControllers();
 
@@ -90,5 +103,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
+
+app.MigrateDatabase();
 
 app.Run();

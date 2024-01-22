@@ -11,7 +11,6 @@ public class User {
     /// Permanent token that can be used to authorize with a Bearer header.
     /// </summary>
     public string? ApiToken { get; set; }
-    public DateTime LastUpdate { get; set; }
     public DateTime CreatedAt { get; set;}
 
     /// <summary>

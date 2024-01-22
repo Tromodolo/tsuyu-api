@@ -71,7 +71,6 @@ public class UserController: BaseController {
 		var hashedPassword = BCrypt.Net.BCrypt.HashPassword(userRegister.Password, hashWorkFactor);
 
 		var apiToken = GenerateToken(userRegister.Username);
-		var timeNow = DateTime.UtcNow;
 
 		var newUser = new User {
 			Username = userRegister.Username,
@@ -79,8 +78,6 @@ public class UserController: BaseController {
 			HashedPassword = hashedPassword,
 			ApiToken = apiToken,
 			IsAdmin = false,
-			CreatedAt = timeNow,
-			LastUpdate = timeNow
 		};
 		await Db.CreateUserAsync(newUser);
 

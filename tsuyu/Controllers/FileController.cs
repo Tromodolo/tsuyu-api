@@ -51,7 +51,6 @@ public class FileController: BaseController {
 			FileSizeInKB = (ulong)file.Length / 1024,
 			FileType = file.ContentType,
 			FileHash = fileHash,
-			CreatedAt = DateTime.UtcNow,
 			UploadedBy = authenticatedUser.Id,
 			UploadedByIp = remoteIp?.ToString() ?? "-"
 		};
