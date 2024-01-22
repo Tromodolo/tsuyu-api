@@ -61,17 +61,15 @@ public class FileControllerTests {
 		// TODO: Uncomment this when CreatedAt is no longer manually set and
 		// has turned into a generated field in the db.
 		// It currently causes problems cause of equality check
-		// db.Received().CreateFileAsync(new UploadedFile {
-		// 	Name = newFileName,
-		// 	OriginalName = fileName,
-		// 	FileSizeInKB = (ulong)fileContentLength / 1024,
-		// 	FileType = fileContent,
-		// 	FileHash = fileHash,
-		// 	CreatedAt = DateTime.UtcNow,
-		// 	UploadedBy = user.Id,
-		// 	UploadedByIp = "-"
-		// });
-
+		db.Received().CreateFileAsync(new UploadedFile {
+			Name = newFileName,
+			OriginalName = fileName,
+			FileSizeInKB = (ulong)fileContentLength / 1024,
+			FileType = fileContent,
+			FileHash = fileHash,
+			UploadedBy = user.Id,
+			UploadedByIp = "-"
+		});
 		fileService.Received().StoreFileAsync(Stream.Null, newFileName);
 
 		Assert.That(result is ObjectResult, Is.True);
