@@ -4,7 +4,7 @@ using System.Text;
 
 namespace tsuyu.Services; 
 
-public class FileService {
+public class FileService : IFileService {
 	string FileStoragePath;
 
 	public FileService() {

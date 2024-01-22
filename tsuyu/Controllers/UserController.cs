@@ -12,9 +12,9 @@ namespace tsuyu.Controllers;
 [ApiController]
 [Route("user")]
 public class UserController: BaseController {
-	readonly ConfigurationService Config;
+	readonly IConfigurationService Config;
 
-	public UserController(Database db, ConfigurationService config) : base(db) {
+	public UserController(IDatabase db, IConfigurationService config) : base(db) {
 		Config = config;
 	}
 
@@ -33,7 +33,7 @@ public class UserController: BaseController {
 			response.Data = user;
 		} else {
 			response.Error = true;
-			response.ErrorMessage = "Invalid login";
+			response.ErrorMessage = "Invalid login.";
 			return BadRequest(response);
 		}
 
@@ -91,10 +91,10 @@ public class UserController: BaseController {
 	[HttpPost]
 	[Route("reset-token")]
 	[Authorize]
-	public async Task<IActionResult> ResetTokenAsync() {
+	public async Task<IActionResult> ResetTokenAsync([FromHeader] string authorization) {
 		var response = new Response<string>();
 
-		var authenticatedUser = await GetAuthenticatedUserAsync();
+		var authenticatedUser = await GetAuthenticatedUserAsync(authorization);
 		var newToken = GenerateToken(authenticatedUser.Username);
 		await Db.SetApiTokenForUserIdAsync(authenticatedUser.Id, newToken);
 
@@ -105,9 +105,9 @@ public class UserController: BaseController {
 	[HttpPost]
 	[Route("change-password")]
 	[Authorize]
-	public async Task<IActionResult> ChangePasswordAsync([FromBody] PasswordUpdate passwordUpdate) {
+	public async Task<IActionResult> ChangePasswordAsync([FromHeader] string authorization, [FromBody] PasswordUpdate passwordUpdate) {
 		var response = new Response<string>();
-		var authenticatedUser = await GetAuthenticatedUserAsync();
+		var authenticatedUser = await GetAuthenticatedUserAsync(authorization);
 
 		if (!BCrypt.Net.BCrypt.Verify(passwordUpdate.Password, authenticatedUser.HashedPassword)) {
 			response.Error = true;

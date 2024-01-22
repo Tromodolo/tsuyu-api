@@ -3,26 +3,24 @@
 namespace tsuyu.Controllers;
 
 public class BaseController : ControllerBase {
-	protected readonly Database Db;
+	protected readonly IDatabase Db;
 
-	public BaseController(Database db) {
+	public BaseController(IDatabase db) {
 		Db = db;
 	}
 
 	/// <summary>
 	/// Reads out the user that was authenticated from the Bearer header.
+	/// This is a consequence of having permanent tokens...
 	/// </summary>
-	/// <remarks>Warning: This should only be used in methods with an [Authorize] attribute,
-	/// to ensure that the header always exists.</remarks>
-	/// <returns>Authenticated user</returns>
-	protected async Task<User> GetAuthenticatedUserAsync() {
-		var usedKey = HttpContext.Request.Headers.Authorization.FirstOrDefault();
-		ArgumentNullException.ThrowIfNull(usedKey); // Shouldn't happen
+	/// <returns>Authenticated user if found with token</returns>
+	protected async Task<User> GetAuthenticatedUserAsync(string token) {
+		ArgumentNullException.ThrowIfNull(token); // Shouldn't happen
 
 		// Removing "Bearer " from start of header
-		usedKey = usedKey.Substring(usedKey.IndexOf(" ") + 1);
+		token = token.Substring(token.IndexOf(" ") + 1);
 
-		var user = await Db.GetUserByTokenAsync(usedKey);
+		var user = await Db.GetUserByTokenAsync(token);
 		ArgumentNullException.ThrowIfNull(user); // Shouldn't happen
 		return user;
 	}

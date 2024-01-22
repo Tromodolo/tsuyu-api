@@ -3,20 +3,20 @@
 /// <summary>
 /// Reads configuration from env and exposes it
 /// </summary>
-public class ConfigurationService {
+public class ConfigurationService : IConfigurationService {
 	// Authentication
-	public string JwtIssuer { get; private set; }
-	public string JwtAudience { get; private set; }
-	public string JwtKey { get; private set; }
+	public string JwtIssuer { get; }
+	public string JwtAudience { get; }
+	public string JwtKey { get; }
 
 	// Network
-	public string DbConnectionString { get; private set; }
-	public string BaseUrl { get; private set; }
+	public string DbConnectionString { get; }
+	public string BaseUrl { get; }
 
 	// General Configuration
-	public bool RegisterEnabled { get; private set; }
-	public ulong MaxFileSizeBytes { get; private set; }
-	public uint FileNameLength { get; private set; }
+	public bool RegisterEnabled { get; }
+	public ulong MaxFileSizeBytes { get; }
+	public uint FileNameLength { get; }
 
 	public ConfigurationService() {
 		// Presume these aren't null cause they are checked on startup

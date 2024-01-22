@@ -7,7 +7,7 @@ namespace tsuyu.Services;
 /// <summary>
 /// Handles connection to database (only MySql/MariaDB supported)
 /// </summary>
-public class Database {
+public class Database : IDatabase {
     readonly ConfigurationService ConfigurationService;
     readonly MySqlConnection Connection;
 

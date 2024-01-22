@@ -4,9 +4,9 @@ namespace tsuyu.Controllers;
 
 [ApiController]
 public class SettingsController : BaseController {
-	readonly ConfigurationService Config;
+	readonly IConfigurationService Config;
 
-	public SettingsController(Database db, ConfigurationService config) : base(db) {
+	public SettingsController(IDatabase db, IConfigurationService config) : base(db) {
 		Config = config;
 	}
 
