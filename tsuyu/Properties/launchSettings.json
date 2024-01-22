@@ -1,0 +1,43 @@
+{
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "JwtIssuer": "https://u.tro.moe",
+        "JwtAudience": "https://u.tro.moe",
+        "JwtKey": "",
+        "MaxFileSizeBytes": "10000000000",
+        "DbConnectionString": "",
+        "BaseUrl": "localhost:7000",
+        "Port": "7000",
+        "RegisterEnabled": "false"
+      },
+      "dotnetRunMessages": true,
+      "applicationUrl": "http://localhost:5012"
+    },
+    "IIS Express": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "launchUrl": "weatherforecast",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "Docker": {
+      "commandName": "Docker",
+      "launchBrowser": true,
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/weatherforecast",
+      "publishAllPorts": true
+    }
+  },
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:54614",
+      "sslPort": 0
+    }
+  }
+}

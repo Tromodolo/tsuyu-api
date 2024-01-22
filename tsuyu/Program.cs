@@ -88,13 +88,12 @@ if (!Directory.Exists(filesPath)) {
 	Directory.CreateDirectory(filesPath);
 }
 
-app.UseStaticFiles(new StaticFileOptions {
+app.UseDefaultFiles();
+app.UseFileServer(new FileServerOptions {
 	FileProvider = new PhysicalFileProvider(publicPath),
-	RequestPath = ""
 });
-app.UseStaticFiles(new StaticFileOptions {
+app.UseFileServer(new FileServerOptions {
 	FileProvider = new PhysicalFileProvider(filesPath),
-	RequestPath = ""
 });
 
 app.MapControllers();
