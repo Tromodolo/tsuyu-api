@@ -10,16 +10,20 @@ namespace tsuyu.Services;
 /// </summary>
 public class Database : IDatabase {
     readonly IConfigurationService ConfigurationService;
-    readonly MySqlConnection Connection;
 
     public Database(IConfigurationService configurationService) {
         ConfigurationService = configurationService;
-        Connection = new MySqlConnection(ConfigurationService.DbConnectionString);
     }
 
     public async Task<int> GetUserCountAsync() {
-        var count = await Connection.ExecuteScalarAsync<int>(@"
+        await using var connection = new MySqlConnection(ConfigurationService.DbConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        var count = await connection.ExecuteScalarAsync<int>(@"
 select count(*) from `users`");
+
+        await transaction.CommitAsync();
         return count;
     }
 
@@ -29,7 +33,11 @@ select count(*) from `users`");
     /// <param name="username">Username of the user to find</param>
     /// <returns>User if it exists, null if not</returns>
     public async Task<User?> GetUserAsync(string username) {
-        var user = await Connection.QuerySingleOrDefaultAsync<User>(@"
+        await using var connection = new MySqlConnection(ConfigurationService.DbConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        var user = await connection.QuerySingleOrDefaultAsync<User>(@"
 select  
     id Id,
     username Username,
@@ -44,11 +52,17 @@ where `username` = @username
             new {
                 username
             });
+
+        await transaction.CommitAsync();
         return user;
     }
 
     public async Task<bool> UserExistsAsync(string username) {
-        var exists = await Connection.ExecuteScalarAsync<bool>(@"
+        await using var connection = new MySqlConnection(ConfigurationService.DbConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        var exists = await connection.ExecuteScalarAsync<bool>(@"
 select exists (
     select *
     from `users` 
@@ -57,6 +71,8 @@ select exists (
             new {
                 username
             });
+
+        await transaction.CommitAsync();
         return exists;
     }
 
@@ -66,7 +82,11 @@ select exists (
     /// <param name="apiToken">Token of the user to find</param>
     /// <returns>User if it exists, null if not</returns>
     public async Task<User?> GetUserByTokenAsync(string apiToken) {
-        var user = await Connection.QuerySingleOrDefaultAsync<User>(@"
+        await using var connection = new MySqlConnection(ConfigurationService.DbConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        var user = await connection.QuerySingleOrDefaultAsync<User>(@"
 select  
     id Id,
     username Username,
@@ -81,6 +101,8 @@ where `api_key` = @apiToken
             new {
                 apiToken
             });
+
+        await transaction.CommitAsync();
         return user;
     }
 
@@ -90,7 +112,11 @@ where `api_key` = @apiToken
     /// <param name="userId">Id of user to update token for</param>
     /// <param name="apiToken">Token to change to</param>
     public async Task SetApiTokenForUserIdAsync(uint userId, string apiToken) {
-        await Connection.ExecuteAsync(@"
+        await using var connection = new MySqlConnection(ConfigurationService.DbConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        await connection.ExecuteAsync(@"
 update `users` 
 set `api_Key`= @apiToken
 where id = @userId
@@ -99,6 +125,8 @@ where id = @userId
                 userId,
                 apiToken
             });
+
+        await transaction.CommitAsync();
     }
 
     /// <summary>
@@ -108,7 +136,11 @@ where id = @userId
     /// <param name="userId">Id of user to update password for</param>
     /// <param name="hashedPassword">(BCrypt) Hash of password to update to</param>
     public async Task SetNewPasswordForUserIdAsync(uint userId, string hashedPassword) {
-        await Connection.ExecuteAsync(@"
+        await using var connection = new MySqlConnection(ConfigurationService.DbConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        await connection.ExecuteAsync(@"
 update `users` 
 set `hashed_password`= @hashedPassword 
 where id = @userId
@@ -117,10 +149,16 @@ where id = @userId
                 userId,
                 hashedPassword
             });
+
+        await transaction.CommitAsync();
     }
 
     public async Task CreateUserAsync(User user) {
-        await Connection.ExecuteAsync(@"
+        await using var connection = new MySqlConnection(ConfigurationService.DbConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        await connection.ExecuteAsync(@"
 insert into `users` (
     username,
     hashed_password,
@@ -141,6 +179,8 @@ insert into `users` (
                 isAdmin = user.IsAdmin,
                 apiToken = user.ApiToken
             });
+
+        await transaction.CommitAsync();
     }
 
     /// <summary>
@@ -148,7 +188,11 @@ insert into `users` (
     /// </summary>
     /// <param name="uploadedFileMetadata">Metadata of the file to store</param>
     public async Task CreateFileAsync(UploadedFile uploadedFileMetadata) {
-        await Connection.ExecuteAsync(@"
+        await using var connection = new MySqlConnection(ConfigurationService.DbConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        await connection.ExecuteAsync(@"
 insert into `files` (
     name, 
     original_name, 
@@ -174,9 +218,15 @@ values (
                 uploadedBy = uploadedFileMetadata.UploadedBy,
                 uploadedIp = uploadedFileMetadata.UploadedByIp
             });
+
+        await transaction.CommitAsync();
     }
 
     public async Task<UploadedFile[]> ListFilesAsync(uint userId, string? cursor, uint pageSize) {
+        await using var connection = new MySqlConnection(ConfigurationService.DbConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
         var queryBuilder = new StringBuilder();
         queryBuilder.Append(@"
 select 
@@ -202,15 +252,20 @@ where
  limit @pageSize");
         var query = queryBuilder.ToString();
 
-        var result = await Connection.QueryAsync<UploadedFile>(
+        var result = await connection.QueryAsync<UploadedFile>(
             query,
             new { userId, cursor, pageSize });
 
+        await transaction.CommitAsync();
         return result.ToArray();
     }
 
     public async Task<UploadedFile?> GetFileByIdAsync(uint fileId) {
-        var result = await Connection.QuerySingleOrDefaultAsync<UploadedFile>(@"
+        await using var connection = new MySqlConnection(ConfigurationService.DbConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        var result = await connection.QuerySingleOrDefaultAsync<UploadedFile>(@"
 select 
     id Id,
     name Name,
@@ -226,14 +281,22 @@ where
     `id` = @fileId
 ",
             new { fileId });
+
+        await transaction.CommitAsync();
         return result;
     }
 
     public async Task DeleteFileAsync(uint fileId) {
-        await Connection.ExecuteAsync(@"
+        await using var connection = new MySqlConnection(ConfigurationService.DbConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        await connection.ExecuteAsync(@"
 delete from `files`
 where `id` = @fileId
 ",
             new { fileId });
+
+        await transaction.CommitAsync();
     }
 }
