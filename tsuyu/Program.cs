@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Text;
 using FluentMigrator.Runner;
 using FluentMigrator.Runner.Initialization;
+using Microsoft.AspNetCore.Http.Features;
 using tsuyu.Migrations;
 
 
@@ -25,13 +26,13 @@ if (!string.IsNullOrEmpty(envPort) &&
 }
 
 var maxFileSizeBytes = Environment.GetEnvironmentVariable("MaxFileSizeBytes") ?? string.Empty;
-if (!long.TryParse(maxFileSizeBytes, out long sizeBytes)) {
-	sizeBytes = 1024 * 1024 * 100; // 100 MB
+if (!long.TryParse(maxFileSizeBytes, out long maxSizeBytes)) {
+	maxSizeBytes = 1024 * 1024 * 100; // 100 MB
 }
 
 builder.WebHost.ConfigureKestrel(opt => {
 	opt.Listen(IPAddress.Any, port);
-	opt.Limits.MaxRequestBodySize = sizeBytes;
+	opt.Limits.MaxRequestBodySize = maxSizeBytes;
 });
 
 // Authentication
@@ -72,6 +73,10 @@ builder.Services.AddAuthentication(opt => {
 		ValidateIssuerSigningKey = true
 	};
 });
+
+builder.Services.Configure<FormOptions>(opt =>
+	opt.MultipartBodyLengthLimit = maxSizeBytes
+);
 
 builder.Services.AddSingleton<IConfigurationService, ConfigurationService>();
 builder.Services.AddSingleton<IDatabase, Database>(); // Depends on IConfigurationService
