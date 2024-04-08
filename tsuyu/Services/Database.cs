@@ -1,5 +1,4 @@
 ﻿using Dapper;
-using FluentMigrator.Runner;
 using MySql.Data.MySqlClient;
 using System.Text;
 
@@ -8,6 +7,8 @@ namespace tsuyu.Services;
 /// <summary>
 /// Handles connection to database (only MySql/MariaDB supported)
 /// </summary>
+[DapperAot]
+[SqlSyntax(SqlSyntax.MySql)]
 public class Database : IDatabase {
     readonly IConfigurationService ConfigurationService;
 

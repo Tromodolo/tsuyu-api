@@ -7,11 +7,13 @@
     <DockerDefaultTargetOS>Windows</DockerDefaultTargetOS>
     <DockerfileContext>.</DockerfileContext>
     <EnableDefaultContentItems>false</EnableDefaultContentItems>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Dapper.AOT</InterceptorsPreviewNamespaces>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Dapper" Version="2.1.28" />
+    <PackageReference Include="Dapper.AOT" Version="1.0.31" />
     <PackageReference Include="FluentMigrator" Version="5.0.0" />
     <PackageReference Include="FluentMigrator.Runner" Version="5.0.0" />
     <PackageReference Include="FluentMigrator.Runner.MySql" Version="5.0.0" />
