@@ -24,8 +24,14 @@ if (!string.IsNullOrEmpty(envPort) &&
 	port = parsedPort;
 }
 
+var maxFileSizeBytes = Environment.GetEnvironmentVariable("MaxFileSizeBytes") ?? string.Empty;
+if (!long.TryParse(maxFileSizeBytes, out long sizeBytes)) {
+	sizeBytes = 1024 * 1024 * 100; // 100 MB
+}
+
 builder.WebHost.ConfigureKestrel(opt => {
 	opt.Listen(IPAddress.Any, port);
+	opt.Limits.MaxRequestBodySize = sizeBytes;
 });
 
 // Authentication
